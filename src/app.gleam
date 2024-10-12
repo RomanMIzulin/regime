@@ -29,6 +29,16 @@ const days = #(
   "Sunday",
 )
 
+pub type Day {
+  Monday
+  Tuesday
+  Wednesday
+  Thursday
+  Friday
+  Saturday
+  Sunday
+}
+
 type Model {
   Model(
     monday: DayHabits,
