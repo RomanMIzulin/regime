@@ -1105,6 +1105,23 @@ function do_take(loop$list, loop$n, loop$acc) {
 function take(list, n) {
   return do_take(list, n, toList([]));
 }
+function do_append(loop$first, loop$second) {
+  while (true) {
+    let first2 = loop$first;
+    let second = loop$second;
+    if (first2.hasLength(0)) {
+      return second;
+    } else {
+      let item = first2.head;
+      let rest$1 = first2.tail;
+      loop$first = rest$1;
+      loop$second = prepend(item, second);
+    }
+  }
+}
+function append(first2, second) {
+  return do_append(reverse(first2), second);
+}
 function fold(loop$list, loop$initial, loop$fun) {
   while (true) {
     let list = loop$list;
@@ -1259,6 +1276,13 @@ var Attribute = class extends CustomType {
     this.as_property = as_property;
   }
 };
+var Event = class extends CustomType {
+  constructor(x0, x1) {
+    super();
+    this[0] = x0;
+    this[1] = x1;
+  }
+};
 function attribute_to_event_handler(attribute2) {
   if (attribute2 instanceof Attribute) {
     return new Error(void 0);
@@ -1322,6 +1346,9 @@ function handlers(element2) {
 // build/dev/javascript/lustre/lustre/attribute.mjs
 function attribute(name, value) {
   return new Attribute(name, identity(value), false);
+}
+function on(name, handler) {
+  return new Event("on" + name, handler);
 }
 function style(properties) {
   return attribute(
@@ -2063,29 +2090,78 @@ function text2(content) {
 function div(attrs, children2) {
   return element("div", attrs, children2);
 }
+function li(attrs, children2) {
+  return element("li", attrs, children2);
+}
+function ol(attrs, children2) {
+  return element("ol", attrs, children2);
+}
+function button(attrs, children2) {
+  return element("button", attrs, children2);
+}
+
+// build/dev/javascript/lustre/lustre/event.mjs
+function on2(name, handler) {
+  return on(name, handler);
+}
+function on_click(msg) {
+  return on2("click", (_) => {
+    return new Ok(msg);
+  });
+}
 
 // build/dev/javascript/app/app.mjs
-var WeekHabits = class extends CustomType {
-  constructor(week_habits) {
+var Model2 = class extends CustomType {
+  constructor(monday, tuesday, wednesday, thursday, friday, saturday, sunday) {
     super();
-    this.week_habits = week_habits;
+    this.monday = monday;
+    this.tuesday = tuesday;
+    this.wednesday = wednesday;
+    this.thursday = thursday;
+    this.friday = friday;
+    this.saturday = saturday;
+    this.sunday = sunday;
+  }
+};
+var Habit = class extends CustomType {
+  constructor(name, descriptioin) {
+    super();
+    this.name = name;
+    this.descriptioin = descriptioin;
+  }
+};
+var AddHabit = class extends CustomType {
+  constructor(day, habit) {
+    super();
+    this.day = day;
+    this.habit = habit;
   }
 };
 function init2(_) {
-  let initial_model = new WeekHabits(toList([]));
+  let initial_model = new Model2(
+    toList([]),
+    toList([]),
+    toList([]),
+    toList([]),
+    toList([]),
+    toList([]),
+    toList([])
+  );
   return [initial_model, none()];
 }
 function update(model, msg) {
-  throw makeError(
-    "todo",
-    "app",
-    44,
-    "update",
-    "`todo` expression evaluated. This code has not yet been implemented.",
-    {}
-  );
+  {
+    let day = msg.day;
+    let habit = msg.habit;
+    if (day === 0) {
+      append(model.monday, toList([habit]));
+      return [model, none()];
+    } else {
+      return [model, none()];
+    }
+  }
 }
-var days = /* @__PURE__ */ toList([
+var days = [
   "Monday",
   "Tuesday",
   "Wednesday",
@@ -2093,22 +2169,28 @@ var days = /* @__PURE__ */ toList([
   "Friday",
   "Saturday",
   "Sunday"
-]);
+];
 function view(model) {
   return div(
     toList([
       style(
         toList([
           ["display", "grid"],
-          ["grid-template-columns", "repeat(7, 1fr)"],
-          ["grid-gap", "10px"]
+          ["grid-template-columns", "repeat(7, minmax(30vw,40vw))"],
+          ["grid-gap", "10px"],
+          ["overflow", "auto"],
+          ["height", "90vh"],
+          ["padding-bottom", "10px"]
         ])
       )
     ]),
     map(
-      index_map(days, (x, i) => {
-        return [i + 1, x];
-      }),
+      index_map(
+        toList([days[0], days[1], days[2], days[3], days[4], days[5], days[6]]),
+        (x, i) => {
+          return [i + 1, x];
+        }
+      ),
       (v) => {
         return div(
           toList([
@@ -2123,6 +2205,28 @@ function view(model) {
             div(
               toList([style(toList([["text-align", "center"]]))]),
               toList([text2(v[1])])
+            ),
+            ol(
+              toList([]),
+              toList([
+                li(
+                  toList([]),
+                  toList([
+                    button(
+                      toList([
+                        on_click(
+                          new AddHabit(
+                            0,
+                            new Habit("kekname", "kekdescription")
+                          )
+                        )
+                      ]),
+                      toList([text2("Add habit")])
+                    )
+                  ])
+                ),
+                li(toList([]), toList([text2("kek")]))
+              ])
             )
           ])
         );
@@ -2137,7 +2241,7 @@ function main() {
     throw makeError(
       "let_assert",
       "app",
-      15,
+      16,
       "main",
       "Pattern match failed, no pattern matched the value.",
       { value: $ }
