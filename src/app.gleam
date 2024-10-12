@@ -1,3 +1,4 @@
+import gleam/dict.{type Dict}
 import gleam/dynamic
 import gleam/int
 import gleam/list
@@ -47,10 +48,6 @@ type Habit {
   Habit(name: String, descriptioin: String)
 }
 
-fn habit_el(habit: Habit) -> Element(Msg) {
-  html.li([], [html.text(habit.name)])
-}
-
 fn init(_) -> #(Model, Effect(Msg)) {
   let initial_model =
     Model(
@@ -85,6 +82,52 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
   }
 }
 
+// ---- VIEW ----
+fn habit_element(habit: Habit) -> Element(Msg) {
+  html.li(
+    [
+      attribute.style([
+        #("border-style", "solid"),
+        #("min-width", "5vw"),
+        #("min-height", "5vh"),
+      ]),
+    ],
+    [html.text(habit.name)],
+  )
+}
+
+fn render_day_habits(day: List(Habit)) {
+  html.ol(
+    [attribute.style([#("border-style", "solid")])],
+    list.map(day, habit_element),
+  )
+}
+
+fn add_button(day: Int) {
+  html.button(
+    [event.on_click(AddHabit(0, Habit("kekname", "kekdescription")))],
+    [html.text("Add habit")],
+  )
+}
+
+fn render_column(index: Int, day_habits: List(Habit)) {
+  html.div(
+    [
+      attribute.style([
+        #("border-style", "solid"),
+        #("grid-column", int.to_string(index)),
+      ]),
+    ],
+    [
+      html.div([attribute.style([#("text-align", "center")])], [
+        html.text("mda"),
+      ]),
+      render_day_habits(day_habits),
+    ],
+  )
+}
+
+// need to decompose this into smaller functions
 fn view(model: Model) -> Element(Msg) {
   html.div(
     [
@@ -97,40 +140,6 @@ fn view(model: Model) -> Element(Msg) {
         #("padding-bottom", "10px"),
       ]),
     ],
-    list.map(
-      list.index_map(
-        [days.0, days.1, days.2, days.3, days.4, days.5, days.6],
-        fn(x, i) { #(i + 1, x) },
-      ),
-      fn(v) {
-        html.div(
-          [
-            attribute.style([
-              #("border-style", "solid"),
-              #("grid-column", int.to_string(v.0)),
-            ]),
-          ],
-          [
-            html.div([attribute.style([#("text-align", "center")])], [
-              html.text(v.1),
-            ]),
-            html.ol([], [
-              html.li([], [
-                html.button(
-                  [
-                    event.on_click(AddHabit(
-                      0,
-                      Habit("kekname", "kekdescription"),
-                    )),
-                  ],
-                  [html.text("Add habit")],
-                ),
-              ]),
-              html.li([], [html.text("kek")]),
-            ]),
-          ],
-        )
-      },
-    ),
+    [],
   )
 }
