@@ -4,6 +4,7 @@ import gleam/int
 import gleam/list
 import gleam/result
 import gleam/set
+import gleam/string
 
 import lustre
 import lustre/attribute
@@ -39,55 +40,101 @@ pub type Day {
   Sunday
 }
 
-type Model {
-  Model(
-    monday: DayHabits,
-    tuesday: DayHabits,
-    wednesday: DayHabits,
-    thursday: DayHabits,
-    friday: DayHabits,
-    saturday: DayHabits,
-    sunday: DayHabits,
+fn get_index_of_day(day: Day) -> Int {
+  case day {
+    Monday -> 0
+    Tuesday -> 1
+    Wednesday -> 2
+    Thursday -> 3
+    Friday -> 4
+    Saturday -> 5
+    Sunday -> 6
+  }
+}
+
+pub type Habit {
+  Habit(name: String, descriptioin: String)
+}
+
+pub type Week {
+  Week(
+    monday: List(Habit),
+    tuesday: List(Habit),
+    wednesday: List(Habit),
+    thursday: List(Habit),
+    friday: List(Habit),
+    saturday: List(Habit),
+    sunday: List(Habit),
   )
 }
 
-type DayHabits =
-  List(Habit)
+fn get_week_days(week: Week) -> List(#(Day, List(Habit))) {
+  [
+    #(Monday, week.monday),
+    #(Tuesday, week.tuesday),
+    #(Wednesday, week.wednesday),
+    #(Thursday, week.thursday),
+    #(Friday, week.friday),
+    #(Saturday, week.saturday),
+    #(Sunday, week.sunday),
+  ]
+}
 
-type Habit {
-  Habit(name: String, descriptioin: String)
+fn week_day(day: Day, week: Week) {
+  case day {
+    Monday -> week.monday
+    Tuesday -> week.tuesday
+    Wednesday -> week.wednesday
+    Thursday -> week.thursday
+    Friday -> week.friday
+    Saturday -> week.saturday
+    Sunday -> week.sunday
+  }
+}
+
+fn update_weekday(day: Day, week: Week, habits: List(Habit)) {
+  case day {
+    Monday -> Week(..week, monday: habits)
+    Tuesday -> Week(..week, tuesday: habits)
+    Wednesday -> Week(..week, wednesday: habits)
+    Thursday -> Week(..week, thursday: habits)
+    Friday -> Week(..week, friday: habits)
+    Saturday -> Week(..week, saturday: habits)
+    Sunday -> Week(..week, sunday: habits)
+  }
+}
+
+type Model {
+  Model(week: Week)
 }
 
 fn init(_) -> #(Model, Effect(Msg)) {
   let initial_model =
     Model(
-      monday: [],
-      tuesday: [],
-      wednesday: [],
-      thursday: [],
-      friday: [],
-      saturday: [],
-      sunday: [],
+      Week(
+        monday: [],
+        tuesday: [],
+        wednesday: [],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: [],
+      ),
     )
   #(initial_model, effect.none())
 }
 
+// ---- UPDATE ----
 type Msg {
-  AddHabit(day: Int, habit: Habit)
+  AddHabit(day: Day, habit: Habit)
 }
 
 fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
   case msg {
     AddHabit(day, habit) -> {
-      case day {
-        0 -> {
-          list.append(model.monday, [habit])
-          #(model, effect.none())
-        }
-        _ -> {
-          #(model, effect.none())
-        }
-      }
+      let day_list = week_day(day, model.week)
+      let week = update_weekday(day, model.week, list.append(day_list, [habit]))
+      #(Model(week), effect.none())
     }
   }
 }
@@ -113,31 +160,30 @@ fn render_day_habits(day: List(Habit)) {
   )
 }
 
-fn add_button(day: Int) {
+fn add_button(day: Day) {
   html.button(
-    [event.on_click(AddHabit(0, Habit("kekname", "kekdescription")))],
+    [event.on_click(AddHabit(day, Habit("kekname", "kekdescription")))],
     [html.text("Add habit")],
   )
 }
 
-fn render_column(index: Int, day_habits: List(Habit)) {
+fn render_column(day: Day, day_habits: List(Habit)) {
   html.div(
     [
       attribute.style([
         #("border-style", "solid"),
-        #("grid-column", int.to_string(index)),
+        #("grid-column", int.to_string(get_index_of_day(day) + 1)),
       ]),
     ],
     [
       html.div([attribute.style([#("text-align", "center")])], [
-        html.text("mda"),
+        html.text(string.inspect(day)),
       ]),
       render_day_habits(day_habits),
     ],
   )
 }
 
-// need to decompose this into smaller functions
 fn view(model: Model) -> Element(Msg) {
   html.div(
     [
@@ -150,6 +196,9 @@ fn view(model: Model) -> Element(Msg) {
         #("padding-bottom", "10px"),
       ]),
     ],
-    [],
+    list.map(get_week_days(model.week), fn(v) {
+      // v.0 - day, v.1 - habits
+      html.div([], [render_column(v.0, v.1), add_button(v.0)])
+    }),
   )
 }

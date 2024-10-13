@@ -77,6 +77,75 @@ var NonEmpty = class extends List {
     this.tail = tail;
   }
 };
+var BitArray = class _BitArray {
+  constructor(buffer) {
+    if (!(buffer instanceof Uint8Array)) {
+      throw "BitArray can only be constructed from a Uint8Array";
+    }
+    this.buffer = buffer;
+  }
+  // @internal
+  get length() {
+    return this.buffer.length;
+  }
+  // @internal
+  byteAt(index2) {
+    return this.buffer[index2];
+  }
+  // @internal
+  floatFromSlice(start3, end, isBigEndian) {
+    return byteArrayToFloat(this.buffer, start3, end, isBigEndian);
+  }
+  // @internal
+  intFromSlice(start3, end, isBigEndian, isSigned) {
+    return byteArrayToInt(this.buffer, start3, end, isBigEndian, isSigned);
+  }
+  // @internal
+  binaryFromSlice(start3, end) {
+    return new _BitArray(this.buffer.slice(start3, end));
+  }
+  // @internal
+  sliceAfter(index2) {
+    return new _BitArray(this.buffer.slice(index2));
+  }
+};
+var UtfCodepoint = class {
+  constructor(value) {
+    this.value = value;
+  }
+};
+function byteArrayToInt(byteArray, start3, end, isBigEndian, isSigned) {
+  let value = 0;
+  if (isBigEndian) {
+    for (let i = start3; i < end; i++) {
+      value = value * 256 + byteArray[i];
+    }
+  } else {
+    for (let i = end - 1; i >= start3; i--) {
+      value = value * 256 + byteArray[i];
+    }
+  }
+  if (isSigned) {
+    const byteSize = end - start3;
+    const highBit = 2 ** (byteSize * 8 - 1);
+    if (value >= highBit) {
+      value -= highBit * 2;
+    }
+  }
+  return value;
+}
+function byteArrayToFloat(byteArray, start3, end, isBigEndian) {
+  const view2 = new DataView(byteArray.buffer);
+  const byteSize = end - start3;
+  if (byteSize === 8) {
+    return view2.getFloat64(start3, !isBigEndian);
+  } else if (byteSize === 4) {
+    return view2.getFloat32(start3, !isBigEndian);
+  } else {
+    const msg = `Sized floats must be 32-bit or 64-bit on JavaScript, got size of ${byteSize * 8} bits`;
+    throw new globalThis.Error(msg);
+  }
+}
 var Result = class _Result extends CustomType {
   // @internal
   static isResult(data) {
@@ -184,6 +253,201 @@ function makeError(variant, module, line, fn, message, extra) {
 // build/dev/javascript/gleam_stdlib/gleam/option.mjs
 var None = class extends CustomType {
 };
+
+// build/dev/javascript/gleam_stdlib/gleam/int.mjs
+function to_string2(x) {
+  return to_string(x);
+}
+
+// build/dev/javascript/gleam_stdlib/gleam/list.mjs
+function do_reverse(loop$remaining, loop$accumulator) {
+  while (true) {
+    let remaining = loop$remaining;
+    let accumulator = loop$accumulator;
+    if (remaining.hasLength(0)) {
+      return accumulator;
+    } else {
+      let item = remaining.head;
+      let rest$1 = remaining.tail;
+      loop$remaining = rest$1;
+      loop$accumulator = prepend(item, accumulator);
+    }
+  }
+}
+function reverse(xs) {
+  return do_reverse(xs, toList([]));
+}
+function do_map(loop$list, loop$fun, loop$acc) {
+  while (true) {
+    let list = loop$list;
+    let fun = loop$fun;
+    let acc = loop$acc;
+    if (list.hasLength(0)) {
+      return reverse(acc);
+    } else {
+      let x = list.head;
+      let xs = list.tail;
+      loop$list = xs;
+      loop$fun = fun;
+      loop$acc = prepend(fun(x), acc);
+    }
+  }
+}
+function map(list, fun) {
+  return do_map(list, fun, toList([]));
+}
+function drop(loop$list, loop$n) {
+  while (true) {
+    let list = loop$list;
+    let n = loop$n;
+    let $ = n <= 0;
+    if ($) {
+      return list;
+    } else {
+      if (list.hasLength(0)) {
+        return toList([]);
+      } else {
+        let xs = list.tail;
+        loop$list = xs;
+        loop$n = n - 1;
+      }
+    }
+  }
+}
+function do_take(loop$list, loop$n, loop$acc) {
+  while (true) {
+    let list = loop$list;
+    let n = loop$n;
+    let acc = loop$acc;
+    let $ = n <= 0;
+    if ($) {
+      return reverse(acc);
+    } else {
+      if (list.hasLength(0)) {
+        return reverse(acc);
+      } else {
+        let x = list.head;
+        let xs = list.tail;
+        loop$list = xs;
+        loop$n = n - 1;
+        loop$acc = prepend(x, acc);
+      }
+    }
+  }
+}
+function take(list, n) {
+  return do_take(list, n, toList([]));
+}
+function do_append(loop$first, loop$second) {
+  while (true) {
+    let first2 = loop$first;
+    let second = loop$second;
+    if (first2.hasLength(0)) {
+      return second;
+    } else {
+      let item = first2.head;
+      let rest$1 = first2.tail;
+      loop$first = rest$1;
+      loop$second = prepend(item, second);
+    }
+  }
+}
+function append(first2, second) {
+  return do_append(reverse(first2), second);
+}
+function fold(loop$list, loop$initial, loop$fun) {
+  while (true) {
+    let list = loop$list;
+    let initial = loop$initial;
+    let fun = loop$fun;
+    if (list.hasLength(0)) {
+      return initial;
+    } else {
+      let x = list.head;
+      let rest$1 = list.tail;
+      loop$list = rest$1;
+      loop$initial = fun(initial, x);
+      loop$fun = fun;
+    }
+  }
+}
+function do_index_fold(loop$over, loop$acc, loop$with, loop$index) {
+  while (true) {
+    let over = loop$over;
+    let acc = loop$acc;
+    let with$ = loop$with;
+    let index2 = loop$index;
+    if (over.hasLength(0)) {
+      return acc;
+    } else {
+      let first$1 = over.head;
+      let rest$1 = over.tail;
+      loop$over = rest$1;
+      loop$acc = with$(acc, first$1, index2);
+      loop$with = with$;
+      loop$index = index2 + 1;
+    }
+  }
+}
+function index_fold(over, initial, fun) {
+  return do_index_fold(over, initial, fun, 0);
+}
+
+// build/dev/javascript/gleam_stdlib/gleam/string_builder.mjs
+function from_strings(strings) {
+  return concat(strings);
+}
+function to_string3(builder) {
+  return identity(builder);
+}
+
+// build/dev/javascript/gleam_stdlib/gleam/string.mjs
+function length2(string3) {
+  return string_length(string3);
+}
+function concat2(strings) {
+  let _pipe = strings;
+  let _pipe$1 = from_strings(_pipe);
+  return to_string3(_pipe$1);
+}
+function do_slice(string3, idx, len) {
+  let _pipe = string3;
+  let _pipe$1 = graphemes(_pipe);
+  let _pipe$2 = drop(_pipe$1, idx);
+  let _pipe$3 = take(_pipe$2, len);
+  return concat2(_pipe$3);
+}
+function slice(string3, idx, len) {
+  let $ = len < 0;
+  if ($) {
+    return "";
+  } else {
+    let $1 = idx < 0;
+    if ($1) {
+      let translated_idx = length2(string3) + idx;
+      let $2 = translated_idx < 0;
+      if ($2) {
+        return "";
+      } else {
+        return do_slice(string3, translated_idx, len);
+      }
+    } else {
+      return do_slice(string3, idx, len);
+    }
+  }
+}
+function drop_left(string3, num_graphemes) {
+  let $ = num_graphemes < 0;
+  if ($) {
+    return string3;
+  } else {
+    return slice(string3, num_graphemes, length2(string3) - num_graphemes);
+  }
+}
+function inspect2(term) {
+  let _pipe = inspect(term);
+  return to_string3(_pipe);
+}
 
 // build/dev/javascript/gleam_stdlib/dict.mjs
 var referenceMap = /* @__PURE__ */ new WeakMap();
@@ -955,6 +1219,117 @@ function map_to_list(map4) {
 function map_insert(key, value, map4) {
   return map4.set(key, value);
 }
+function inspect(v) {
+  const t = typeof v;
+  if (v === true)
+    return "True";
+  if (v === false)
+    return "False";
+  if (v === null)
+    return "//js(null)";
+  if (v === void 0)
+    return "Nil";
+  if (t === "string")
+    return inspectString(v);
+  if (t === "bigint" || t === "number")
+    return v.toString();
+  if (Array.isArray(v))
+    return `#(${v.map(inspect).join(", ")})`;
+  if (v instanceof List)
+    return inspectList(v);
+  if (v instanceof UtfCodepoint)
+    return inspectUtfCodepoint(v);
+  if (v instanceof BitArray)
+    return inspectBitArray(v);
+  if (v instanceof CustomType)
+    return inspectCustomType(v);
+  if (v instanceof Dict)
+    return inspectDict(v);
+  if (v instanceof Set)
+    return `//js(Set(${[...v].map(inspect).join(", ")}))`;
+  if (v instanceof RegExp)
+    return `//js(${v})`;
+  if (v instanceof Date)
+    return `//js(Date("${v.toISOString()}"))`;
+  if (v instanceof Function) {
+    const args = [];
+    for (const i of Array(v.length).keys())
+      args.push(String.fromCharCode(i + 97));
+    return `//fn(${args.join(", ")}) { ... }`;
+  }
+  return inspectObject(v);
+}
+function inspectString(str) {
+  let new_str = '"';
+  for (let i = 0; i < str.length; i++) {
+    let char = str[i];
+    switch (char) {
+      case "\n":
+        new_str += "\\n";
+        break;
+      case "\r":
+        new_str += "\\r";
+        break;
+      case "	":
+        new_str += "\\t";
+        break;
+      case "\f":
+        new_str += "\\f";
+        break;
+      case "\\":
+        new_str += "\\\\";
+        break;
+      case '"':
+        new_str += '\\"';
+        break;
+      default:
+        if (char < " " || char > "~" && char < "\xA0") {
+          new_str += "\\u{" + char.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0") + "}";
+        } else {
+          new_str += char;
+        }
+    }
+  }
+  new_str += '"';
+  return new_str;
+}
+function inspectDict(map4) {
+  let body = "dict.from_list([";
+  let first2 = true;
+  map4.forEach((value, key) => {
+    if (!first2)
+      body = body + ", ";
+    body = body + "#(" + inspect(key) + ", " + inspect(value) + ")";
+    first2 = false;
+  });
+  return body + "])";
+}
+function inspectObject(v) {
+  const name = Object.getPrototypeOf(v)?.constructor?.name || "Object";
+  const props = [];
+  for (const k of Object.keys(v)) {
+    props.push(`${inspect(k)}: ${inspect(v[k])}`);
+  }
+  const body = props.length ? " " + props.join(", ") + " " : "";
+  const head = name === "Object" ? "" : name + " ";
+  return `//js(${head}{${body}})`;
+}
+function inspectCustomType(record) {
+  const props = Object.keys(record).map((label) => {
+    const value = inspect(record[label]);
+    return isNaN(parseInt(label)) ? `${label}: ${value}` : value;
+  }).join(", ");
+  return props ? `${record.constructor.name}(${props})` : record.constructor.name;
+}
+function inspectList(list) {
+  return `[${list.toArray().map(inspect).join(", ")}]`;
+}
+function inspectBitArray(bits) {
+  return `<<${Array.from(bits.buffer).join(", ")}>>`;
+}
+function inspectUtfCodepoint(codepoint2) {
+  return `//utfcodepoint(${String.fromCodePoint(codepoint2.value)})`;
+}
 
 // build/dev/javascript/gleam_stdlib/gleam/dict.mjs
 function new$() {
@@ -997,219 +1372,6 @@ function do_keys(dict) {
 }
 function keys(dict) {
   return do_keys(dict);
-}
-
-// build/dev/javascript/gleam_stdlib/gleam/int.mjs
-function to_string2(x) {
-  return to_string(x);
-}
-
-// build/dev/javascript/gleam_stdlib/gleam/list.mjs
-function do_reverse(loop$remaining, loop$accumulator) {
-  while (true) {
-    let remaining = loop$remaining;
-    let accumulator = loop$accumulator;
-    if (remaining.hasLength(0)) {
-      return accumulator;
-    } else {
-      let item = remaining.head;
-      let rest$1 = remaining.tail;
-      loop$remaining = rest$1;
-      loop$accumulator = prepend(item, accumulator);
-    }
-  }
-}
-function reverse(xs) {
-  return do_reverse(xs, toList([]));
-}
-function do_map(loop$list, loop$fun, loop$acc) {
-  while (true) {
-    let list = loop$list;
-    let fun = loop$fun;
-    let acc = loop$acc;
-    if (list.hasLength(0)) {
-      return reverse(acc);
-    } else {
-      let x = list.head;
-      let xs = list.tail;
-      loop$list = xs;
-      loop$fun = fun;
-      loop$acc = prepend(fun(x), acc);
-    }
-  }
-}
-function map(list, fun) {
-  return do_map(list, fun, toList([]));
-}
-function do_index_map(loop$list, loop$fun, loop$index, loop$acc) {
-  while (true) {
-    let list = loop$list;
-    let fun = loop$fun;
-    let index2 = loop$index;
-    let acc = loop$acc;
-    if (list.hasLength(0)) {
-      return reverse(acc);
-    } else {
-      let x = list.head;
-      let xs = list.tail;
-      let acc$1 = prepend(fun(x, index2), acc);
-      loop$list = xs;
-      loop$fun = fun;
-      loop$index = index2 + 1;
-      loop$acc = acc$1;
-    }
-  }
-}
-function index_map(list, fun) {
-  return do_index_map(list, fun, 0, toList([]));
-}
-function drop(loop$list, loop$n) {
-  while (true) {
-    let list = loop$list;
-    let n = loop$n;
-    let $ = n <= 0;
-    if ($) {
-      return list;
-    } else {
-      if (list.hasLength(0)) {
-        return toList([]);
-      } else {
-        let xs = list.tail;
-        loop$list = xs;
-        loop$n = n - 1;
-      }
-    }
-  }
-}
-function do_take(loop$list, loop$n, loop$acc) {
-  while (true) {
-    let list = loop$list;
-    let n = loop$n;
-    let acc = loop$acc;
-    let $ = n <= 0;
-    if ($) {
-      return reverse(acc);
-    } else {
-      if (list.hasLength(0)) {
-        return reverse(acc);
-      } else {
-        let x = list.head;
-        let xs = list.tail;
-        loop$list = xs;
-        loop$n = n - 1;
-        loop$acc = prepend(x, acc);
-      }
-    }
-  }
-}
-function take(list, n) {
-  return do_take(list, n, toList([]));
-}
-function do_append(loop$first, loop$second) {
-  while (true) {
-    let first2 = loop$first;
-    let second = loop$second;
-    if (first2.hasLength(0)) {
-      return second;
-    } else {
-      let item = first2.head;
-      let rest$1 = first2.tail;
-      loop$first = rest$1;
-      loop$second = prepend(item, second);
-    }
-  }
-}
-function append(first2, second) {
-  return do_append(reverse(first2), second);
-}
-function fold(loop$list, loop$initial, loop$fun) {
-  while (true) {
-    let list = loop$list;
-    let initial = loop$initial;
-    let fun = loop$fun;
-    if (list.hasLength(0)) {
-      return initial;
-    } else {
-      let x = list.head;
-      let rest$1 = list.tail;
-      loop$list = rest$1;
-      loop$initial = fun(initial, x);
-      loop$fun = fun;
-    }
-  }
-}
-function do_index_fold(loop$over, loop$acc, loop$with, loop$index) {
-  while (true) {
-    let over = loop$over;
-    let acc = loop$acc;
-    let with$ = loop$with;
-    let index2 = loop$index;
-    if (over.hasLength(0)) {
-      return acc;
-    } else {
-      let first$1 = over.head;
-      let rest$1 = over.tail;
-      loop$over = rest$1;
-      loop$acc = with$(acc, first$1, index2);
-      loop$with = with$;
-      loop$index = index2 + 1;
-    }
-  }
-}
-function index_fold(over, initial, fun) {
-  return do_index_fold(over, initial, fun, 0);
-}
-
-// build/dev/javascript/gleam_stdlib/gleam/string_builder.mjs
-function from_strings(strings) {
-  return concat(strings);
-}
-function to_string3(builder) {
-  return identity(builder);
-}
-
-// build/dev/javascript/gleam_stdlib/gleam/string.mjs
-function length2(string3) {
-  return string_length(string3);
-}
-function concat2(strings) {
-  let _pipe = strings;
-  let _pipe$1 = from_strings(_pipe);
-  return to_string3(_pipe$1);
-}
-function do_slice(string3, idx, len) {
-  let _pipe = string3;
-  let _pipe$1 = graphemes(_pipe);
-  let _pipe$2 = drop(_pipe$1, idx);
-  let _pipe$3 = take(_pipe$2, len);
-  return concat2(_pipe$3);
-}
-function slice(string3, idx, len) {
-  let $ = len < 0;
-  if ($) {
-    return "";
-  } else {
-    let $1 = idx < 0;
-    if ($1) {
-      let translated_idx = length2(string3) + idx;
-      let $2 = translated_idx < 0;
-      if ($2) {
-        return "";
-      } else {
-        return do_slice(string3, translated_idx, len);
-      }
-    } else {
-      return do_slice(string3, idx, len);
-    }
-  }
-}
-function drop_left(string3, num_graphemes) {
-  let $ = num_graphemes < 0;
-  if ($) {
-    return string3;
-  } else {
-    return slice(string3, num_graphemes, length2(string3) - num_graphemes);
-  }
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/set.mjs
@@ -2111,7 +2273,28 @@ function on_click(msg) {
 }
 
 // build/dev/javascript/app/app.mjs
-var Model2 = class extends CustomType {
+var Monday = class extends CustomType {
+};
+var Tuesday = class extends CustomType {
+};
+var Wednesday = class extends CustomType {
+};
+var Thursday = class extends CustomType {
+};
+var Friday = class extends CustomType {
+};
+var Saturday = class extends CustomType {
+};
+var Sunday = class extends CustomType {
+};
+var Habit = class extends CustomType {
+  constructor(name, descriptioin) {
+    super();
+    this.name = name;
+    this.descriptioin = descriptioin;
+  }
+};
+var Week = class extends CustomType {
   constructor(monday, tuesday, wednesday, thursday, friday, saturday, sunday) {
     super();
     this.monday = monday;
@@ -2123,11 +2306,10 @@ var Model2 = class extends CustomType {
     this.sunday = sunday;
   }
 };
-var Habit = class extends CustomType {
-  constructor(name, descriptioin) {
+var Model2 = class extends CustomType {
+  constructor(week) {
     super();
-    this.name = name;
-    this.descriptioin = descriptioin;
+    this.week = week;
   }
 };
 var AddHabit = class extends CustomType {
@@ -2137,15 +2319,79 @@ var AddHabit = class extends CustomType {
     this.habit = habit;
   }
 };
+function get_index_of_day(day) {
+  if (day instanceof Monday) {
+    return 0;
+  } else if (day instanceof Tuesday) {
+    return 1;
+  } else if (day instanceof Wednesday) {
+    return 2;
+  } else if (day instanceof Thursday) {
+    return 3;
+  } else if (day instanceof Friday) {
+    return 4;
+  } else if (day instanceof Saturday) {
+    return 5;
+  } else {
+    return 6;
+  }
+}
+function get_week_days(week) {
+  return toList([
+    [new Monday(), week.monday],
+    [new Tuesday(), week.tuesday],
+    [new Wednesday(), week.wednesday],
+    [new Thursday(), week.thursday],
+    [new Friday(), week.friday],
+    [new Saturday(), week.saturday],
+    [new Sunday(), week.sunday]
+  ]);
+}
+function week_day(day, week) {
+  if (day instanceof Monday) {
+    return week.monday;
+  } else if (day instanceof Tuesday) {
+    return week.tuesday;
+  } else if (day instanceof Wednesday) {
+    return week.wednesday;
+  } else if (day instanceof Thursday) {
+    return week.thursday;
+  } else if (day instanceof Friday) {
+    return week.friday;
+  } else if (day instanceof Saturday) {
+    return week.saturday;
+  } else {
+    return week.sunday;
+  }
+}
+function update_weekday(day, week, habits) {
+  if (day instanceof Monday) {
+    return week.withFields({ monday: habits });
+  } else if (day instanceof Tuesday) {
+    return week.withFields({ tuesday: habits });
+  } else if (day instanceof Wednesday) {
+    return week.withFields({ wednesday: habits });
+  } else if (day instanceof Thursday) {
+    return week.withFields({ thursday: habits });
+  } else if (day instanceof Friday) {
+    return week.withFields({ friday: habits });
+  } else if (day instanceof Saturday) {
+    return week.withFields({ saturday: habits });
+  } else {
+    return week.withFields({ sunday: habits });
+  }
+}
 function init2(_) {
   let initial_model = new Model2(
-    toList([]),
-    toList([]),
-    toList([]),
-    toList([]),
-    toList([]),
-    toList([]),
-    toList([])
+    new Week(
+      toList([]),
+      toList([]),
+      toList([]),
+      toList([]),
+      toList([]),
+      toList([]),
+      toList([])
+    )
   );
   return [initial_model, none()];
 }
@@ -2153,23 +2399,62 @@ function update(model, msg) {
   {
     let day = msg.day;
     let habit = msg.habit;
-    if (day === 0) {
-      append(model.monday, toList([habit]));
-      return [model, none()];
-    } else {
-      return [model, none()];
-    }
+    let day_list = week_day(day, model.week);
+    let week = update_weekday(
+      day,
+      model.week,
+      append(day_list, toList([habit]))
+    );
+    return [new Model2(week), none()];
   }
 }
-var days = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday"
-];
+function habit_element(habit) {
+  return li(
+    toList([
+      style(
+        toList([
+          ["border-style", "solid"],
+          ["min-width", "5vw"],
+          ["min-height", "5vh"]
+        ])
+      )
+    ]),
+    toList([text2(habit.name)])
+  );
+}
+function render_day_habits(day) {
+  return ol(
+    toList([style(toList([["border-style", "solid"]]))]),
+    map(day, habit_element)
+  );
+}
+function add_button(day) {
+  return button(
+    toList([
+      on_click(new AddHabit(day, new Habit("kekname", "kekdescription")))
+    ]),
+    toList([text2("Add habit")])
+  );
+}
+function render_column(day, day_habits) {
+  return div(
+    toList([
+      style(
+        toList([
+          ["border-style", "solid"],
+          ["grid-column", to_string2(get_index_of_day(day) + 1)]
+        ])
+      )
+    ]),
+    toList([
+      div(
+        toList([style(toList([["text-align", "center"]]))]),
+        toList([text2(inspect2(day))])
+      ),
+      render_day_habits(day_habits)
+    ])
+  );
+}
 function view(model) {
   return div(
     toList([
@@ -2185,50 +2470,11 @@ function view(model) {
       )
     ]),
     map(
-      index_map(
-        toList([days[0], days[1], days[2], days[3], days[4], days[5], days[6]]),
-        (x, i) => {
-          return [i + 1, x];
-        }
-      ),
+      get_week_days(model.week),
       (v) => {
         return div(
-          toList([
-            style(
-              toList([
-                ["border-style", "solid"],
-                ["grid-column", to_string2(v[0])]
-              ])
-            )
-          ]),
-          toList([
-            div(
-              toList([style(toList([["text-align", "center"]]))]),
-              toList([text2(v[1])])
-            ),
-            ol(
-              toList([]),
-              toList([
-                li(
-                  toList([]),
-                  toList([
-                    button(
-                      toList([
-                        on_click(
-                          new AddHabit(
-                            0,
-                            new Habit("kekname", "kekdescription")
-                          )
-                        )
-                      ]),
-                      toList([text2("Add habit")])
-                    )
-                  ])
-                ),
-                li(toList([]), toList([text2("kek")]))
-              ])
-            )
-          ])
+          toList([]),
+          toList([render_column(v[0], v[1]), add_button(v[0])])
         );
       }
     )
@@ -2241,7 +2487,7 @@ function main() {
     throw makeError(
       "let_assert",
       "app",
-      16,
+      18,
       "main",
       "Pattern match failed, no pattern matched the value.",
       { value: $ }
