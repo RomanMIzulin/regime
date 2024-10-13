@@ -167,7 +167,7 @@ fn add_button(day: Day) {
   )
 }
 
-fn render_column(day: Day, day_habits: List(Habit)) {
+fn render_day_habits(day: Day, day_habits: List(Habit)) {
   html.div(
     [
       attribute.style([
@@ -198,7 +198,7 @@ fn view(model: Model) -> Element(Msg) {
     ],
     list.map(get_week_days(model.week), fn(v) {
       // v.0 - day, v.1 - habits
-      html.div([], [render_column(v.0, v.1), add_button(v.0)])
+      html.div([], [render_day_habits(v.0, v.1), add_button(v.0)])
     }),
   )
 }
