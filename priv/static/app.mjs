@@ -355,6 +355,37 @@ function do_append(loop$first, loop$second) {
 function append(first2, second) {
   return do_append(reverse(first2), second);
 }
+function reverse_and_prepend(loop$prefix, loop$suffix) {
+  while (true) {
+    let prefix = loop$prefix;
+    let suffix = loop$suffix;
+    if (prefix.hasLength(0)) {
+      return suffix;
+    } else {
+      let first$1 = prefix.head;
+      let rest$1 = prefix.tail;
+      loop$prefix = rest$1;
+      loop$suffix = prepend(first$1, suffix);
+    }
+  }
+}
+function do_concat(loop$lists, loop$acc) {
+  while (true) {
+    let lists = loop$lists;
+    let acc = loop$acc;
+    if (lists.hasLength(0)) {
+      return reverse(acc);
+    } else {
+      let list = lists.head;
+      let further_lists = lists.tail;
+      loop$lists = further_lists;
+      loop$acc = reverse_and_prepend(list, acc);
+    }
+  }
+}
+function concat(lists) {
+  return do_concat(lists, toList([]));
+}
 function fold(loop$list, loop$initial, loop$fun) {
   while (true) {
     let list = loop$list;
@@ -395,7 +426,7 @@ function index_fold(over, initial, fun) {
 
 // build/dev/javascript/gleam_stdlib/gleam/string_builder.mjs
 function from_strings(strings) {
-  return concat(strings);
+  return concat2(strings);
 }
 function to_string3(builder) {
   return identity(builder);
@@ -405,7 +436,7 @@ function to_string3(builder) {
 function length2(string3) {
   return string_length(string3);
 }
-function concat2(strings) {
+function concat3(strings) {
   let _pipe = strings;
   let _pipe$1 = from_strings(_pipe);
   return to_string3(_pipe$1);
@@ -415,7 +446,7 @@ function do_slice(string3, idx, len) {
   let _pipe$1 = graphemes(_pipe);
   let _pipe$2 = drop(_pipe$1, idx);
   let _pipe$3 = take(_pipe$2, len);
-  return concat2(_pipe$3);
+  return concat3(_pipe$3);
 }
 function slice(string3, idx, len) {
   let $ = len < 0;
@@ -1181,7 +1212,7 @@ function graphemes_iterator(string3) {
     return new Intl.Segmenter().segment(string3)[Symbol.iterator]();
   }
 }
-function concat(xs) {
+function concat2(xs) {
   let result = "";
   for (const x of xs) {
     result = result + x;
@@ -2258,6 +2289,9 @@ function li(attrs, children2) {
 function ol(attrs, children2) {
   return element("ol", attrs, children2);
 }
+function br(attrs) {
+  return element("br", attrs, toList([]));
+}
 function button(attrs, children2) {
   return element("button", attrs, children2);
 }
@@ -2319,23 +2353,6 @@ var AddHabit = class extends CustomType {
     this.habit = habit;
   }
 };
-function get_index_of_day(day) {
-  if (day instanceof Monday) {
-    return 0;
-  } else if (day instanceof Tuesday) {
-    return 1;
-  } else if (day instanceof Wednesday) {
-    return 2;
-  } else if (day instanceof Thursday) {
-    return 3;
-  } else if (day instanceof Friday) {
-    return 4;
-  } else if (day instanceof Saturday) {
-    return 5;
-  } else {
-    return 6;
-  }
-}
 function get_week_days(week) {
   return toList([
     [new Monday(), week.monday],
@@ -2403,12 +2420,12 @@ function update(model, msg) {
     let week = update_weekday(
       day,
       model.week,
-      append(day_list, toList([habit]))
+      append(toList([habit]), day_list)
     );
     return [new Model2(week), none()];
   }
 }
-function habit_element(habit) {
+function habit_el(habit) {
   return li(
     toList([
       style(
@@ -2419,13 +2436,23 @@ function habit_element(habit) {
         ])
       )
     ]),
-    toList([text2(habit.name)])
+    toList([
+      div(
+        toList([style(toList([["font-size", "20px"]]))]),
+        toList([text2(habit.name)])
+      ),
+      br(toList([])),
+      div(
+        toList([style(toList([["font-size", "15px"]]))]),
+        toList([text2(habit.descriptioin)])
+      )
+    ])
   );
 }
 function render_day_habits(day) {
   return ol(
     toList([style(toList([["border-style", "solid"]]))]),
-    map(day, habit_element)
+    map(day, habit_el)
   );
 }
 function add_button(day) {
@@ -2434,25 +2461,6 @@ function add_button(day) {
       on_click(new AddHabit(day, new Habit("kekname", "kekdescription")))
     ]),
     toList([text2("Add habit")])
-  );
-}
-function render_column(day, day_habits) {
-  return div(
-    toList([
-      style(
-        toList([
-          ["border-style", "solid"],
-          ["grid-column", to_string2(get_index_of_day(day) + 1)]
-        ])
-      )
-    ]),
-    toList([
-      div(
-        toList([style(toList([["text-align", "center"]]))]),
-        toList([text2(inspect2(day))])
-      ),
-      render_day_habits(day_habits)
-    ])
   );
 }
 function view(model) {
@@ -2473,8 +2481,16 @@ function view(model) {
       get_week_days(model.week),
       (v) => {
         return div(
-          toList([]),
-          toList([render_column(v[0], v[1]), add_button(v[0])])
+          toList([style(toList([["border-style", "solid"]]))]),
+          toList([
+            text2(inspect2(v[0])),
+            render_day_habits(
+              concat(
+                toList([toList([new Habit("sport", "any sport")]), v[1]])
+              )
+            ),
+            add_button(v[0])
+          ])
         );
       }
     )

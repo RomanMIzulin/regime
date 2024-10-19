@@ -133,14 +133,14 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
   case msg {
     AddHabit(day, habit) -> {
       let day_list = week_day(day, model.week)
-      let week = update_weekday(day, model.week, list.append(day_list, [habit]))
+      let week = update_weekday(day, model.week, list.append([habit], day_list))
       #(Model(week), effect.none())
     }
   }
 }
 
 // ---- VIEW ----
-fn habit_element(habit: Habit) -> Element(Msg) {
+fn habit_el(habit: Habit) -> Element(Msg) {
   html.li(
     [
       attribute.style([
@@ -149,14 +149,22 @@ fn habit_element(habit: Habit) -> Element(Msg) {
         #("min-height", "5vh"),
       ]),
     ],
-    [html.text(habit.name)],
+    [
+      html.div([attribute.style([#("font-size", "20px")])], [
+        html.text(habit.name),
+      ]),
+      html.br([]),
+      html.div([attribute.style([#("font-size", "15px")])], [
+        html.text(habit.descriptioin),
+      ]),
+    ],
   )
 }
 
 fn render_day_habits(day: List(Habit)) {
   html.ol(
     [attribute.style([#("border-style", "solid")])],
-    list.map(day, habit_element),
+    list.map(day, habit_el),
   )
 }
 
@@ -164,23 +172,6 @@ fn add_button(day: Day) {
   html.button(
     [event.on_click(AddHabit(day, Habit("kekname", "kekdescription")))],
     [html.text("Add habit")],
-  )
-}
-
-fn render_day_habits(day: Day, day_habits: List(Habit)) {
-  html.div(
-    [
-      attribute.style([
-        #("border-style", "solid"),
-        #("grid-column", int.to_string(get_index_of_day(day) + 1)),
-      ]),
-    ],
-    [
-      html.div([attribute.style([#("text-align", "center")])], [
-        html.text(string.inspect(day)),
-      ]),
-      render_day_habits(day_habits),
-    ],
   )
 }
 
@@ -198,7 +189,11 @@ fn view(model: Model) -> Element(Msg) {
     ],
     list.map(get_week_days(model.week), fn(v) {
       // v.0 - day, v.1 - habits
-      html.div([], [render_day_habits(v.0, v.1), add_button(v.0)])
+      html.div([attribute.style([#("border-style", "solid")])], [
+        html.text(string.inspect(v.0)),
+        render_day_habits(list.concat([[Habit("sport", "any sport")], v.1])),
+        add_button(v.0),
+      ])
     }),
   )
 }
