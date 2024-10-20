@@ -20,6 +20,9 @@ pub fn main() {
   Nil
 }
 
+// 2^32
+const small_int = 4_294_967_296
+
 const days = #(
   "Monday",
   "Tuesday",
@@ -53,7 +56,7 @@ fn get_index_of_day(day: Day) -> Int {
 }
 
 pub type Habit {
-  Habit(name: String, descriptioin: String)
+  Habit(id: Int, name: String, descriptioin: String)
 }
 
 pub type Week {
@@ -127,6 +130,7 @@ fn init(_) -> #(Model, Effect(Msg)) {
 // ---- UPDATE ----
 type Msg {
   AddHabit(day: Day, habit: Habit)
+  RemoveHabit(habit_id: Int)
 }
 
 fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
@@ -135,6 +139,9 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
       let day_list = week_day(day, model.week)
       let week = update_weekday(day, model.week, list.append([habit], day_list))
       #(Model(week), effect.none())
+    }
+    RemoveHabit(habit_id) -> {
+      todo as "write map id -> Habit to make delition"
     }
   }
 }
@@ -170,7 +177,12 @@ fn render_day_habits(day: List(Habit)) {
 
 fn add_button(day: Day) {
   html.button(
-    [event.on_click(AddHabit(day, Habit("kekname", "kekdescription")))],
+    [
+      event.on_click(AddHabit(
+        day,
+        Habit(int.random(small_int), "kekname", "kekdescription"),
+      )),
+    ],
     [html.text("Add habit")],
   )
 }
@@ -191,7 +203,7 @@ fn view(model: Model) -> Element(Msg) {
       // v.0 - day, v.1 - habits
       html.div([attribute.style([#("border-style", "solid")])], [
         html.text(string.inspect(v.0)),
-        render_day_habits(list.concat([[Habit("sport", "any sport")], v.1])),
+        render_day_habits(list.concat([[Habit(1, "sport", "any sport")], v.1])),
         add_button(v.0),
       ])
     }),
