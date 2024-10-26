@@ -59,6 +59,10 @@ pub type Habit {
   Habit(id: Int, name: String, descriptioin: String)
 }
 
+fn new_habit(name: String, description: String) -> Habit {
+  Habit(int.random(small_int), name, description)
+}
+
 pub type Week {
   Week(
     monday: List(Habit),
@@ -107,8 +111,12 @@ fn update_weekday(day: Day, week: Week, habits: List(Habit)) {
   }
 }
 
+type ModalAddHabit {
+  ModalAddHabit(day: Day, is_show: Bool)
+}
+
 type Model {
-  Model(week: Week)
+  Model(week: Week, modal: ModalAddHabit)
 }
 
 fn init(_) -> #(Model, Effect(Msg)) {
@@ -123,6 +131,7 @@ fn init(_) -> #(Model, Effect(Msg)) {
         saturday: [],
         sunday: [],
       ),
+      ModalAddHabit(Monday, False),
     )
   #(initial_model, effect.none())
 }
@@ -131,6 +140,7 @@ fn init(_) -> #(Model, Effect(Msg)) {
 type Msg {
   AddHabit(day: Day, habit: Habit)
   RemoveHabit(habit_id: Int)
+  ShowModalAddHabit(day: Day)
 }
 
 fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
@@ -138,10 +148,13 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
     AddHabit(day, habit) -> {
       let day_list = week_day(day, model.week)
       let week = update_weekday(day, model.week, list.append([habit], day_list))
-      #(Model(week), effect.none())
+      #(Model(week, model.modal), effect.none())
     }
     RemoveHabit(habit_id) -> {
       todo as "write map id -> Habit to make delition"
+    }
+    ShowModalAddHabit(day) -> {
+      #(Model(model.week, ModalAddHabit(day, True)), effect.none())
     }
   }
 }
@@ -175,16 +188,45 @@ fn render_day_habits(day: List(Habit)) {
   )
 }
 
-fn add_button(day: Day) {
-  html.button(
+fn add_new_habit_dialog(day: Day, is_opened: Bool) -> Element(Msg) {
+  html.dialog(
     [
-      event.on_click(AddHabit(
-        day,
-        Habit(int.random(small_int), "kekname", "kekdescription"),
-      )),
+      attribute.open(is_opened),
+      attribute.style([
+        #("border-style", "solid"),
+        #("min-width", "5vw"),
+        #("min-height", "5vh"),
+      ]),
     ],
-    [html.text("Add habit")],
+    [
+      html.p([], [html.text("Adding new habit")]),
+      html.form([], [
+        html.input([
+          attribute.type_("text"),
+          attribute.placeholder("name of habbit"),
+          attribute.required(True),
+        ]),
+        html.input([attribute.placeholder(string.inspect(day))]),
+        html.input([
+          attribute.type_("text"),
+          attribute.placeholder("description"),
+          attribute.required(False),
+        ]),
+        html.input([attribute.type_("submit")]),
+      ]),
+    ],
   )
+}
+
+//old fn
+fn add_button(day: Day, name: String, description: String) -> Element(Msg) {
+  html.button([event.on_click(AddHabit(day, new_habit(name, description)))], [
+    html.text("Add habit"),
+  ])
+}
+
+fn show_modal_button(day: Day) -> Element(Msg) {
+  html.button([event.on_click(ShowModalAddHabit(day))], [html.text("Add habit")])
 }
 
 fn view(model: Model) -> Element(Msg) {
@@ -199,13 +241,18 @@ fn view(model: Model) -> Element(Msg) {
         #("padding-bottom", "10px"),
       ]),
     ],
-    list.map(get_week_days(model.week), fn(v) {
-      // v.0 - day, v.1 - habits
-      html.div([attribute.style([#("border-style", "solid")])], [
-        html.text(string.inspect(v.0)),
-        render_day_habits(list.concat([[Habit(1, "sport", "any sport")], v.1])),
-        add_button(v.0),
-      ])
-    }),
+    list.append(
+      [add_new_habit_dialog(model.modal.day, model.modal.is_show)],
+      list.map(get_week_days(model.week), fn(v) {
+        // v.0 - day, v.1 - habits
+        html.div([attribute.style([#("border-style", "solid")])], [
+          html.text(string.inspect(v.0)),
+          render_day_habits(
+            list.concat([[Habit(1, "sport", "any sport")], v.1]),
+          ),
+          show_modal_button(v.0),
+        ])
+      }),
+    ),
   )
 }
