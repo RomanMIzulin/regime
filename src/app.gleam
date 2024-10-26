@@ -189,6 +189,16 @@ fn render_day_habits(day: List(Habit)) {
 }
 
 fn add_new_habit_dialog(day: Day, is_opened: Bool) -> Element(Msg) {
+  let h_name = "habit_name"
+  let h_desc = "habit_description"
+  let process_form_values = fn(event) {
+    let _ = event.prevent_default(event)
+    use target <- result.try(dynamic.field("target", dynamic.dynamic)(event))
+    use name <- result.try(dynamic.field(h_name, dynamic.string)(target))
+    use desc <- result.try(dynamic.field(h_desc, dynamic.string)(target))
+
+    Ok(AddHabit(day, new_habit(name, desc)))
+  }
   html.dialog(
     [
       attribute.open(is_opened),
@@ -200,14 +210,16 @@ fn add_new_habit_dialog(day: Day, is_opened: Bool) -> Element(Msg) {
     ],
     [
       html.p([], [html.text("Adding new habit")]),
-      html.form([], [
+      html.form([event.on("submit", process_form_values)], [
         html.input([
+          attribute.name(h_name),
           attribute.type_("text"),
           attribute.placeholder("name of habbit"),
           attribute.required(True),
         ]),
         html.input([attribute.placeholder(string.inspect(day))]),
         html.input([
+          attribute.name(h_desc),
           attribute.type_("text"),
           attribute.placeholder("description"),
           attribute.required(False),

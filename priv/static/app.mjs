@@ -251,12 +251,53 @@ function makeError(variant, module, line, fn, message, extra) {
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/option.mjs
+var Some = class extends CustomType {
+  constructor(x0) {
+    super();
+    this[0] = x0;
+  }
+};
 var None = class extends CustomType {
 };
+function to_result(option, e) {
+  if (option instanceof Some) {
+    let a = option[0];
+    return new Ok(a);
+  } else {
+    return new Error(e);
+  }
+}
+
+// build/dev/javascript/gleam_stdlib/gleam/float.mjs
+function floor2(x) {
+  return floor(x);
+}
+function negate(x) {
+  return -1 * x;
+}
+function do_round(x) {
+  let $ = x >= 0;
+  if ($) {
+    return round(x);
+  } else {
+    return 0 - round(negate(x));
+  }
+}
+function round2(x) {
+  return do_round(x);
+}
 
 // build/dev/javascript/gleam_stdlib/gleam/int.mjs
 function to_string2(x) {
   return to_string(x);
+}
+function to_float(x) {
+  return identity(x);
+}
+function random(max) {
+  let _pipe = random_uniform() * to_float(max);
+  let _pipe$1 = floor2(_pipe);
+  return round2(_pipe$1);
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/list.mjs
@@ -424,6 +465,35 @@ function index_fold(over, initial, fun) {
   return do_index_fold(over, initial, fun, 0);
 }
 
+// build/dev/javascript/gleam_stdlib/gleam/result.mjs
+function map2(result, fun) {
+  if (result.isOk()) {
+    let x = result[0];
+    return new Ok(fun(x));
+  } else {
+    let e = result[0];
+    return new Error(e);
+  }
+}
+function map_error(result, fun) {
+  if (result.isOk()) {
+    let x = result[0];
+    return new Ok(x);
+  } else {
+    let error = result[0];
+    return new Error(fun(error));
+  }
+}
+function try$(result, fun) {
+  if (result.isOk()) {
+    let x = result[0];
+    return fun(x);
+  } else {
+    let e = result[0];
+    return new Error(e);
+  }
+}
+
 // build/dev/javascript/gleam_stdlib/gleam/string_builder.mjs
 function from_strings(strings) {
   return concat2(strings);
@@ -478,6 +548,94 @@ function drop_left(string3, num_graphemes) {
 function inspect2(term) {
   let _pipe = inspect(term);
   return to_string3(_pipe);
+}
+
+// build/dev/javascript/gleam_stdlib/gleam/dynamic.mjs
+var DecodeError = class extends CustomType {
+  constructor(expected, found, path) {
+    super();
+    this.expected = expected;
+    this.found = found;
+    this.path = path;
+  }
+};
+function dynamic(value) {
+  return new Ok(value);
+}
+function classify(data) {
+  return classify_dynamic(data);
+}
+function int(data) {
+  return decode_int(data);
+}
+function any(decoders) {
+  return (data) => {
+    if (decoders.hasLength(0)) {
+      return new Error(
+        toList([new DecodeError("another type", classify(data), toList([]))])
+      );
+    } else {
+      let decoder = decoders.head;
+      let decoders$1 = decoders.tail;
+      let $ = decoder(data);
+      if ($.isOk()) {
+        let decoded = $[0];
+        return new Ok(decoded);
+      } else {
+        return any(decoders$1)(data);
+      }
+    }
+  };
+}
+function push_path(error, name2) {
+  let name$1 = identity(name2);
+  let decoder = any(
+    toList([string, (x) => {
+      return map2(int(x), to_string2);
+    }])
+  );
+  let name$2 = (() => {
+    let $ = decoder(name$1);
+    if ($.isOk()) {
+      let name$22 = $[0];
+      return name$22;
+    } else {
+      let _pipe = toList(["<", classify(name$1), ">"]);
+      let _pipe$1 = from_strings(_pipe);
+      return to_string3(_pipe$1);
+    }
+  })();
+  return error.withFields({ path: prepend(name$2, error.path) });
+}
+function map_errors(result, f) {
+  return map_error(
+    result,
+    (_capture) => {
+      return map(_capture, f);
+    }
+  );
+}
+function string(data) {
+  return decode_string(data);
+}
+function field(name2, inner_type) {
+  return (value) => {
+    let missing_field_error = new DecodeError("field", "nothing", toList([]));
+    return try$(
+      decode_field(value, name2),
+      (maybe_inner) => {
+        let _pipe = maybe_inner;
+        let _pipe$1 = to_result(_pipe, toList([missing_field_error]));
+        let _pipe$2 = try$(_pipe$1, inner_type);
+        return map_errors(
+          _pipe$2,
+          (_capture) => {
+            return push_path(_capture, name2);
+          }
+        );
+      }
+    );
+  };
 }
 
 // build/dev/javascript/gleam_stdlib/dict.mjs
@@ -1178,6 +1336,8 @@ var Dict = class _Dict {
 };
 
 // build/dev/javascript/gleam_stdlib/gleam_stdlib.mjs
+var Nil = void 0;
+var NOT_FOUND = {};
 function identity(x) {
   return x;
 }
@@ -1241,14 +1401,96 @@ var unicode_whitespaces = [
 ].join("");
 var left_trim_regex = new RegExp(`^([${unicode_whitespaces}]*)`, "g");
 var right_trim_regex = new RegExp(`([${unicode_whitespaces}]*)$`, "g");
+function floor(float3) {
+  return Math.floor(float3);
+}
+function round(float3) {
+  return Math.round(float3);
+}
+function random_uniform() {
+  const random_uniform_result = Math.random();
+  if (random_uniform_result === 1) {
+    return random_uniform();
+  }
+  return random_uniform_result;
+}
 function new_map() {
   return Dict.new();
 }
 function map_to_list(map4) {
   return List.fromArray(map4.entries());
 }
+function map_get(map4, key) {
+  const value = map4.get(key, NOT_FOUND);
+  if (value === NOT_FOUND) {
+    return new Error(Nil);
+  }
+  return new Ok(value);
+}
 function map_insert(key, value, map4) {
   return map4.set(key, value);
+}
+function classify_dynamic(data) {
+  if (typeof data === "string") {
+    return "String";
+  } else if (typeof data === "boolean") {
+    return "Bool";
+  } else if (data instanceof Result) {
+    return "Result";
+  } else if (data instanceof List) {
+    return "List";
+  } else if (data instanceof BitArray) {
+    return "BitArray";
+  } else if (data instanceof Dict) {
+    return "Dict";
+  } else if (Number.isInteger(data)) {
+    return "Int";
+  } else if (Array.isArray(data)) {
+    return `Tuple of ${data.length} elements`;
+  } else if (typeof data === "number") {
+    return "Float";
+  } else if (data === null) {
+    return "Null";
+  } else if (data === void 0) {
+    return "Nil";
+  } else {
+    const type = typeof data;
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  }
+}
+function decoder_error(expected, got) {
+  return decoder_error_no_classify(expected, classify_dynamic(got));
+}
+function decoder_error_no_classify(expected, got) {
+  return new Error(
+    List.fromArray([new DecodeError(expected, got, List.fromArray([]))])
+  );
+}
+function decode_string(data) {
+  return typeof data === "string" ? new Ok(data) : decoder_error("String", data);
+}
+function decode_int(data) {
+  return Number.isInteger(data) ? new Ok(data) : decoder_error("Int", data);
+}
+function decode_field(value, name2) {
+  const not_a_map_error = () => decoder_error("Dict", value);
+  if (value instanceof Dict || value instanceof WeakMap || value instanceof Map) {
+    const entry = map_get(value, name2);
+    return new Ok(entry.isOk() ? new Some(entry[0]) : new None());
+  } else if (value === null) {
+    return not_a_map_error();
+  } else if (Object.getPrototypeOf(value) == Object.prototype) {
+    return try_get_field(value, name2, () => new Ok(new None()));
+  } else {
+    return try_get_field(value, name2, not_a_map_error);
+  }
+}
+function try_get_field(value, field2, or_else) {
+  try {
+    return field2 in value ? new Ok(new Some(value[field2])) : or_else();
+  } catch {
+    return or_else();
+  }
 }
 function inspect(v) {
   const t = typeof v;
@@ -1336,13 +1578,13 @@ function inspectDict(map4) {
   return body + "])";
 }
 function inspectObject(v) {
-  const name = Object.getPrototypeOf(v)?.constructor?.name || "Object";
+  const name2 = Object.getPrototypeOf(v)?.constructor?.name || "Object";
   const props = [];
   for (const k of Object.keys(v)) {
     props.push(`${inspect(k)}: ${inspect(v[k])}`);
   }
   const body = props.length ? " " + props.join(", ") + " " : "";
-  const head = name === "Object" ? "" : name + " ";
+  const head = name2 === "Object" ? "" : name2 + " ";
   return `//js(${head}{${body}})`;
 }
 function inspectCustomType(record) {
@@ -1480,9 +1722,9 @@ function attribute_to_event_handler(attribute2) {
   if (attribute2 instanceof Attribute) {
     return new Error(void 0);
   } else {
-    let name = attribute2[0];
+    let name2 = attribute2[0];
     let handler = attribute2[1];
-    let name$1 = drop_left(name, 2);
+    let name$1 = drop_left(name2, 2);
     return new Ok([name$1, handler]);
   }
 }
@@ -1517,9 +1759,9 @@ function do_handlers(loop$element, loop$handlers, loop$key) {
         (handlers3, attr) => {
           let $ = attribute_to_event_handler(attr);
           if ($.isOk()) {
-            let name = $[0][0];
+            let name2 = $[0][0];
             let handler = $[0][1];
-            return insert(handlers3, key + "-" + name, handler);
+            return insert(handlers3, key + "-" + name2, handler);
           } else {
             return handlers3;
           }
@@ -1537,11 +1779,14 @@ function handlers(element2) {
 }
 
 // build/dev/javascript/lustre/lustre/attribute.mjs
-function attribute(name, value) {
-  return new Attribute(name, identity(value), false);
+function attribute(name2, value) {
+  return new Attribute(name2, identity(value), false);
 }
-function on(name, handler) {
-  return new Event("on" + name, handler);
+function property(name2, value) {
+  return new Attribute(name2, identity(value), true);
+}
+function on(name2, handler) {
+  return new Event("on" + name2, handler);
 }
 function style(properties) {
   return attribute(
@@ -1556,6 +1801,21 @@ function style(properties) {
       }
     )
   );
+}
+function type_(name2) {
+  return attribute("type", name2);
+}
+function placeholder(text3) {
+  return attribute("placeholder", text3);
+}
+function name(name2) {
+  return attribute("name", name2);
+}
+function required(is_required) {
+  return property("required", is_required);
+}
+function open(is_open) {
+  return property("open", is_open);
 }
 
 // build/dev/javascript/lustre/lustre/element.mjs
@@ -1754,15 +2014,15 @@ function createElementNode({ prev, next, dispatch, stack }) {
   }
   const delegated = [];
   for (const attr of next.attrs) {
-    const name = attr[0];
+    const name2 = attr[0];
     const value = attr[1];
     if (attr.as_property) {
-      if (el[name] !== value)
-        el[name] = value;
+      if (el[name2] !== value)
+        el[name2] = value;
       if (canMorph)
-        prevAttributes.delete(name);
-    } else if (name.startsWith("on")) {
-      const eventName = name.slice(2);
+        prevAttributes.delete(name2);
+    } else if (name2.startsWith("on")) {
+      const eventName = name2.slice(2);
       const callback = dispatch(value, eventName === "input");
       if (!handlersForEl.has(eventName)) {
         el.addEventListener(eventName, lustreGenericEventHandler);
@@ -1770,30 +2030,30 @@ function createElementNode({ prev, next, dispatch, stack }) {
       handlersForEl.set(eventName, callback);
       if (canMorph)
         prevHandlers.delete(eventName);
-    } else if (name.startsWith("data-lustre-on-")) {
-      const eventName = name.slice(15);
+    } else if (name2.startsWith("data-lustre-on-")) {
+      const eventName = name2.slice(15);
       const callback = dispatch(lustreServerEventHandler);
       if (!handlersForEl.has(eventName)) {
         el.addEventListener(eventName, lustreGenericEventHandler);
       }
       handlersForEl.set(eventName, callback);
-      el.setAttribute(name, value);
-    } else if (name.startsWith("delegate:data-") || name.startsWith("delegate:aria-")) {
-      el.setAttribute(name, value);
-      delegated.push([name.slice(10), value]);
-    } else if (name === "class") {
+      el.setAttribute(name2, value);
+    } else if (name2.startsWith("delegate:data-") || name2.startsWith("delegate:aria-")) {
+      el.setAttribute(name2, value);
+      delegated.push([name2.slice(10), value]);
+    } else if (name2 === "class") {
       className = className === null ? value : className + " " + value;
-    } else if (name === "style") {
+    } else if (name2 === "style") {
       style2 = style2 === null ? value : style2 + value;
-    } else if (name === "dangerous-unescaped-html") {
+    } else if (name2 === "dangerous-unescaped-html") {
       innerHTML = value;
     } else {
-      if (el.getAttribute(name) !== value)
-        el.setAttribute(name, value);
-      if (name === "value" || name === "selected")
-        el[name] = value;
+      if (el.getAttribute(name2) !== value)
+        el.setAttribute(name2, value);
+      if (name2 === "value" || name2 === "selected")
+        el[name2] = value;
       if (canMorph)
-        prevAttributes.delete(name);
+        prevAttributes.delete(name2);
     }
   }
   if (className !== null) {
@@ -1818,9 +2078,9 @@ function createElementNode({ prev, next, dispatch, stack }) {
   if (next.tag === "slot") {
     window.queueMicrotask(() => {
       for (const child of el.assignedElements()) {
-        for (const [name, value] of delegated) {
-          if (!child.hasAttribute(name)) {
-            child.setAttribute(name, value);
+        for (const [name2, value] of delegated) {
+          if (!child.hasAttribute(name2)) {
+            child.setAttribute(name2, value);
           }
         }
       }
@@ -1895,8 +2155,8 @@ function lustreServerEventHandler(event2) {
   return {
     tag,
     data: include.reduce(
-      (data2, property) => {
-        const path = property.split(".");
+      (data2, property2) => {
+        const path = property2.split(".");
         for (let i = 0, o = data2, e = event2; i < path.length; i++) {
           if (i === path.length - 1) {
             o[path[i]] = e[path[i]];
@@ -1946,9 +2206,9 @@ function diffKeyedChild(prevChild, child, el, stack, incomingKeyedChildren, keye
     return prevChild;
   }
   if (!keyedChild && prevChild !== null) {
-    const placeholder = document.createTextNode("");
-    el.insertBefore(placeholder, prevChild);
-    stack.unshift({ prev: placeholder, next: child, parent: el });
+    const placeholder2 = document.createTextNode("");
+    el.insertBefore(placeholder2, prevChild);
+    stack.unshift({ prev: placeholder2, next: child, parent: el });
     return prevChild;
   }
   if (!keyedChild || keyedChild === prevChild) {
@@ -2244,6 +2504,7 @@ var LustreServerApplication = class _LustreServerApplication {
 };
 var start_server_application = LustreServerApplication.start;
 var is_browser = () => globalThis.window && window.document;
+var prevent_default = (event2) => event2.preventDefault();
 
 // build/dev/javascript/lustre/lustre.mjs
 var App = class extends CustomType {
@@ -2289,16 +2550,28 @@ function li(attrs, children2) {
 function ol(attrs, children2) {
   return element("ol", attrs, children2);
 }
+function p(attrs, children2) {
+  return element("p", attrs, children2);
+}
 function br(attrs) {
   return element("br", attrs, toList([]));
 }
 function button(attrs, children2) {
   return element("button", attrs, children2);
 }
+function form(attrs, children2) {
+  return element("form", attrs, children2);
+}
+function input(attrs) {
+  return element("input", attrs, toList([]));
+}
+function dialog(attrs, children2) {
+  return element("dialog", attrs, children2);
+}
 
 // build/dev/javascript/lustre/lustre/event.mjs
-function on2(name, handler) {
-  return on(name, handler);
+function on2(name2, handler) {
+  return on(name2, handler);
 }
 function on_click(msg) {
   return on2("click", (_) => {
@@ -2322,9 +2595,10 @@ var Saturday = class extends CustomType {
 var Sunday = class extends CustomType {
 };
 var Habit = class extends CustomType {
-  constructor(name, descriptioin) {
+  constructor(id, name2, descriptioin) {
     super();
-    this.name = name;
+    this.id = id;
+    this.name = name2;
     this.descriptioin = descriptioin;
   }
 };
@@ -2340,10 +2614,18 @@ var Week = class extends CustomType {
     this.sunday = sunday;
   }
 };
+var ModalAddHabit = class extends CustomType {
+  constructor(day, is_show) {
+    super();
+    this.day = day;
+    this.is_show = is_show;
+  }
+};
 var Model2 = class extends CustomType {
-  constructor(week) {
+  constructor(week, modal) {
     super();
     this.week = week;
+    this.modal = modal;
   }
 };
 var AddHabit = class extends CustomType {
@@ -2351,6 +2633,18 @@ var AddHabit = class extends CustomType {
     super();
     this.day = day;
     this.habit = habit;
+  }
+};
+var RemoveHabit = class extends CustomType {
+  constructor(habit_id) {
+    super();
+    this.habit_id = habit_id;
+  }
+};
+var ShowModalAddHabit = class extends CustomType {
+  constructor(day) {
+    super();
+    this.day = day;
   }
 };
 function get_week_days(week) {
@@ -2408,12 +2702,13 @@ function init2(_) {
       toList([]),
       toList([]),
       toList([])
-    )
+    ),
+    new ModalAddHabit(new Monday(), false)
   );
   return [initial_model, none()];
 }
 function update(model, msg) {
-  {
+  if (msg instanceof AddHabit) {
     let day = msg.day;
     let habit = msg.habit;
     let day_list = week_day(day, model.week);
@@ -2422,7 +2717,20 @@ function update(model, msg) {
       model.week,
       append(toList([habit]), day_list)
     );
-    return [new Model2(week), none()];
+    return [new Model2(week, model.modal), none()];
+  } else if (msg instanceof RemoveHabit) {
+    let habit_id = msg.habit_id;
+    throw makeError(
+      "todo",
+      "app",
+      154,
+      "update",
+      "write map id -> Habit to make delition",
+      {}
+    );
+  } else {
+    let day = msg.day;
+    return [new Model2(model.week, new ModalAddHabit(day, true)), none()];
   }
 }
 function habit_el(habit) {
@@ -2455,12 +2763,75 @@ function render_day_habits(day) {
     map(day, habit_el)
   );
 }
-function add_button(day) {
+function show_modal_button(day) {
   return button(
-    toList([
-      on_click(new AddHabit(day, new Habit("kekname", "kekdescription")))
-    ]),
+    toList([on_click(new ShowModalAddHabit(day))]),
     toList([text2("Add habit")])
+  );
+}
+var small_int = 4294967296;
+function new_habit(name2, description) {
+  return new Habit(random(small_int), name2, description);
+}
+function add_new_habit_dialog(day, is_opened) {
+  let h_name = "habit_name";
+  let h_desc = "habit_description";
+  let process_form_values = (event2) => {
+    let $ = prevent_default(event2);
+    return try$(
+      field("target", dynamic)(event2),
+      (target) => {
+        return try$(
+          field(h_name, string)(target),
+          (name2) => {
+            return try$(
+              field(h_desc, string)(target),
+              (desc) => {
+                return new Ok(new AddHabit(day, new_habit(name2, desc)));
+              }
+            );
+          }
+        );
+      }
+    );
+  };
+  return dialog(
+    toList([
+      open(is_opened),
+      style(
+        toList([
+          ["border-style", "solid"],
+          ["min-width", "5vw"],
+          ["min-height", "5vh"]
+        ])
+      )
+    ]),
+    toList([
+      p(toList([]), toList([text2("Adding new habit")])),
+      form(
+        toList([on2("submit", process_form_values)]),
+        toList([
+          input(
+            toList([
+              name(h_name),
+              type_("text"),
+              placeholder("name of habbit"),
+              required(true)
+            ])
+          ),
+          input(toList([placeholder(inspect2(day))])),
+          input(
+            toList([
+              name(h_desc),
+              type_("text"),
+              placeholder("description"),
+              required(false)
+            ])
+          ),
+          input(toList([type_("submit")]))
+        ])
+      )
+    ])
   );
 }
 function view(model) {
@@ -2477,22 +2848,25 @@ function view(model) {
         ])
       )
     ]),
-    map(
-      get_week_days(model.week),
-      (v) => {
-        return div(
-          toList([style(toList([["border-style", "solid"]]))]),
-          toList([
-            text2(inspect2(v[0])),
-            render_day_habits(
-              concat(
-                toList([toList([new Habit("sport", "any sport")]), v[1]])
-              )
-            ),
-            add_button(v[0])
-          ])
-        );
-      }
+    append(
+      toList([add_new_habit_dialog(model.modal.day, model.modal.is_show)]),
+      map(
+        get_week_days(model.week),
+        (v) => {
+          return div(
+            toList([style(toList([["border-style", "solid"]]))]),
+            toList([
+              text2(inspect2(v[0])),
+              render_day_habits(
+                concat(
+                  toList([toList([new Habit(1, "sport", "any sport")]), v[1]])
+                )
+              ),
+              show_modal_button(v[0])
+            ])
+          );
+        }
+      )
     )
   );
 }
