@@ -138,9 +138,11 @@ fn init(_) -> #(Model, Effect(Msg)) {
 
 // ---- UPDATE ----
 type Msg {
+  // should this event trigger modal closing?
   AddHabit(day: Day, habit: Habit)
   RemoveHabit(habit_id: Int)
   ShowModalAddHabit(day: Day)
+  CloseModalAddHabit
 }
 
 fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
@@ -155,6 +157,9 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
     }
     ShowModalAddHabit(day) -> {
       #(Model(model.week, ModalAddHabit(day, True)), effect.none())
+    }
+    CloseModalAddHabit -> {
+      #(Model(model.week, ModalAddHabit(model.modal.day, False)), effect.none())
     }
   }
 }
@@ -209,7 +214,18 @@ fn add_new_habit_dialog(day: Day, is_opened: Bool) -> Element(Msg) {
       ]),
     ],
     [
-      html.p([], [html.text("Adding new habit")]),
+      html.div(
+        [
+          attribute.style([
+            #("display", "flex"),
+            #("justify-content", "space-between"),
+          ]),
+        ],
+        [
+          html.p([], [html.text("Adding new habit")]),
+          html.span([event.on_click(CloseModalAddHabit)], [html.text("X")]),
+        ],
+      ),
       html.form([event.on("submit", process_form_values)], [
         html.input([
           attribute.name(h_name),

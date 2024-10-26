@@ -2556,6 +2556,9 @@ function p(attrs, children2) {
 function br(attrs) {
   return element("br", attrs, toList([]));
 }
+function span(attrs, children2) {
+  return element("span", attrs, children2);
+}
 function button(attrs, children2) {
   return element("button", attrs, children2);
 }
@@ -2647,6 +2650,8 @@ var ShowModalAddHabit = class extends CustomType {
     this.day = day;
   }
 };
+var CloseModalAddHabit = class extends CustomType {
+};
 function get_week_days(week) {
   return toList([
     [new Monday(), week.monday],
@@ -2723,14 +2728,19 @@ function update(model, msg) {
     throw makeError(
       "todo",
       "app",
-      154,
+      156,
       "update",
       "write map id -> Habit to make delition",
       {}
     );
-  } else {
+  } else if (msg instanceof ShowModalAddHabit) {
     let day = msg.day;
     return [new Model2(model.week, new ModalAddHabit(day, true)), none()];
+  } else {
+    return [
+      new Model2(model.week, new ModalAddHabit(model.modal.day, false)),
+      none()
+    ];
   }
 }
 function habit_el(habit) {
@@ -2807,7 +2817,20 @@ function add_new_habit_dialog(day, is_opened) {
       )
     ]),
     toList([
-      p(toList([]), toList([text2("Adding new habit")])),
+      div(
+        toList([
+          style(
+            toList([["display", "flex"], ["justify-content", "space-between"]])
+          )
+        ]),
+        toList([
+          p(toList([]), toList([text2("Adding new habit")])),
+          span(
+            toList([on_click(new CloseModalAddHabit())]),
+            toList([text2("X")])
+          )
+        ])
+      ),
       form(
         toList([on2("submit", process_form_values)]),
         toList([
