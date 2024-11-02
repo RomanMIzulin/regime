@@ -251,53 +251,50 @@ function makeError(variant, module, line, fn, message, extra) {
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/option.mjs
-var Some = class extends CustomType {
-  constructor(x0) {
-    super();
-    this[0] = x0;
-  }
-};
 var None = class extends CustomType {
 };
-function to_result(option, e) {
-  if (option instanceof Some) {
-    let a = option[0];
-    return new Ok(a);
-  } else {
-    return new Error(e);
+
+// build/dev/javascript/gleam_stdlib/gleam/dict.mjs
+function new$() {
+  return new_map();
+}
+function insert(dict, key, value) {
+  return map_insert(key, value, dict);
+}
+function reverse_and_concat(loop$remaining, loop$accumulator) {
+  while (true) {
+    let remaining = loop$remaining;
+    let accumulator = loop$accumulator;
+    if (remaining.hasLength(0)) {
+      return accumulator;
+    } else {
+      let item = remaining.head;
+      let rest = remaining.tail;
+      loop$remaining = rest;
+      loop$accumulator = prepend(item, accumulator);
+    }
   }
 }
-
-// build/dev/javascript/gleam_stdlib/gleam/float.mjs
-function floor2(x) {
-  return floor(x);
-}
-function negate(x) {
-  return -1 * x;
-}
-function do_round(x) {
-  let $ = x >= 0;
-  if ($) {
-    return round(x);
-  } else {
-    return 0 - round(negate(x));
+function do_keys_acc(loop$list, loop$acc) {
+  while (true) {
+    let list = loop$list;
+    let acc = loop$acc;
+    if (list.hasLength(0)) {
+      return reverse_and_concat(acc, toList([]));
+    } else {
+      let x = list.head;
+      let xs = list.tail;
+      loop$list = xs;
+      loop$acc = prepend(x[0], acc);
+    }
   }
 }
-function round2(x) {
-  return do_round(x);
+function do_keys(dict) {
+  let list_of_pairs = map_to_list(dict);
+  return do_keys_acc(list_of_pairs, toList([]));
 }
-
-// build/dev/javascript/gleam_stdlib/gleam/int.mjs
-function to_string2(x) {
-  return to_string(x);
-}
-function to_float(x) {
-  return identity(x);
-}
-function random(max) {
-  let _pipe = random_uniform() * to_float(max);
-  let _pipe$1 = floor2(_pipe);
-  return round2(_pipe$1);
+function keys(dict) {
+  return do_keys(dict);
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/list.mjs
@@ -465,40 +462,11 @@ function index_fold(over, initial, fun) {
   return do_index_fold(over, initial, fun, 0);
 }
 
-// build/dev/javascript/gleam_stdlib/gleam/result.mjs
-function map2(result, fun) {
-  if (result.isOk()) {
-    let x = result[0];
-    return new Ok(fun(x));
-  } else {
-    let e = result[0];
-    return new Error(e);
-  }
-}
-function map_error(result, fun) {
-  if (result.isOk()) {
-    let x = result[0];
-    return new Ok(x);
-  } else {
-    let error = result[0];
-    return new Error(fun(error));
-  }
-}
-function try$(result, fun) {
-  if (result.isOk()) {
-    let x = result[0];
-    return fun(x);
-  } else {
-    let e = result[0];
-    return new Error(e);
-  }
-}
-
 // build/dev/javascript/gleam_stdlib/gleam/string_builder.mjs
 function from_strings(strings) {
   return concat2(strings);
 }
-function to_string3(builder) {
+function to_string(builder) {
   return identity(builder);
 }
 
@@ -509,7 +477,7 @@ function length2(string3) {
 function concat3(strings) {
   let _pipe = strings;
   let _pipe$1 = from_strings(_pipe);
-  return to_string3(_pipe$1);
+  return to_string(_pipe$1);
 }
 function do_slice(string3, idx, len) {
   let _pipe = string3;
@@ -547,95 +515,7 @@ function drop_left(string3, num_graphemes) {
 }
 function inspect2(term) {
   let _pipe = inspect(term);
-  return to_string3(_pipe);
-}
-
-// build/dev/javascript/gleam_stdlib/gleam/dynamic.mjs
-var DecodeError = class extends CustomType {
-  constructor(expected, found, path) {
-    super();
-    this.expected = expected;
-    this.found = found;
-    this.path = path;
-  }
-};
-function dynamic(value) {
-  return new Ok(value);
-}
-function classify(data) {
-  return classify_dynamic(data);
-}
-function int(data) {
-  return decode_int(data);
-}
-function any(decoders) {
-  return (data) => {
-    if (decoders.hasLength(0)) {
-      return new Error(
-        toList([new DecodeError("another type", classify(data), toList([]))])
-      );
-    } else {
-      let decoder = decoders.head;
-      let decoders$1 = decoders.tail;
-      let $ = decoder(data);
-      if ($.isOk()) {
-        let decoded = $[0];
-        return new Ok(decoded);
-      } else {
-        return any(decoders$1)(data);
-      }
-    }
-  };
-}
-function push_path(error, name2) {
-  let name$1 = identity(name2);
-  let decoder = any(
-    toList([string, (x) => {
-      return map2(int(x), to_string2);
-    }])
-  );
-  let name$2 = (() => {
-    let $ = decoder(name$1);
-    if ($.isOk()) {
-      let name$22 = $[0];
-      return name$22;
-    } else {
-      let _pipe = toList(["<", classify(name$1), ">"]);
-      let _pipe$1 = from_strings(_pipe);
-      return to_string3(_pipe$1);
-    }
-  })();
-  return error.withFields({ path: prepend(name$2, error.path) });
-}
-function map_errors(result, f) {
-  return map_error(
-    result,
-    (_capture) => {
-      return map(_capture, f);
-    }
-  );
-}
-function string(data) {
-  return decode_string(data);
-}
-function field(name2, inner_type) {
-  return (value) => {
-    let missing_field_error = new DecodeError("field", "nothing", toList([]));
-    return try$(
-      decode_field(value, name2),
-      (maybe_inner) => {
-        let _pipe = maybe_inner;
-        let _pipe$1 = to_result(_pipe, toList([missing_field_error]));
-        let _pipe$2 = try$(_pipe$1, inner_type);
-        return map_errors(
-          _pipe$2,
-          (_capture) => {
-            return push_path(_capture, name2);
-          }
-        );
-      }
-    );
-  };
+  return to_string(_pipe);
 }
 
 // build/dev/javascript/gleam_stdlib/dict.mjs
@@ -1336,12 +1216,10 @@ var Dict = class _Dict {
 };
 
 // build/dev/javascript/gleam_stdlib/gleam_stdlib.mjs
-var Nil = void 0;
-var NOT_FOUND = {};
 function identity(x) {
   return x;
 }
-function to_string(term) {
+function to_string3(term) {
   return term.toString();
 }
 function string_length(string3) {
@@ -1420,77 +1298,8 @@ function new_map() {
 function map_to_list(map4) {
   return List.fromArray(map4.entries());
 }
-function map_get(map4, key) {
-  const value = map4.get(key, NOT_FOUND);
-  if (value === NOT_FOUND) {
-    return new Error(Nil);
-  }
-  return new Ok(value);
-}
 function map_insert(key, value, map4) {
   return map4.set(key, value);
-}
-function classify_dynamic(data) {
-  if (typeof data === "string") {
-    return "String";
-  } else if (typeof data === "boolean") {
-    return "Bool";
-  } else if (data instanceof Result) {
-    return "Result";
-  } else if (data instanceof List) {
-    return "List";
-  } else if (data instanceof BitArray) {
-    return "BitArray";
-  } else if (data instanceof Dict) {
-    return "Dict";
-  } else if (Number.isInteger(data)) {
-    return "Int";
-  } else if (Array.isArray(data)) {
-    return `Tuple of ${data.length} elements`;
-  } else if (typeof data === "number") {
-    return "Float";
-  } else if (data === null) {
-    return "Null";
-  } else if (data === void 0) {
-    return "Nil";
-  } else {
-    const type = typeof data;
-    return type.charAt(0).toUpperCase() + type.slice(1);
-  }
-}
-function decoder_error(expected, got) {
-  return decoder_error_no_classify(expected, classify_dynamic(got));
-}
-function decoder_error_no_classify(expected, got) {
-  return new Error(
-    List.fromArray([new DecodeError(expected, got, List.fromArray([]))])
-  );
-}
-function decode_string(data) {
-  return typeof data === "string" ? new Ok(data) : decoder_error("String", data);
-}
-function decode_int(data) {
-  return Number.isInteger(data) ? new Ok(data) : decoder_error("Int", data);
-}
-function decode_field(value, name2) {
-  const not_a_map_error = () => decoder_error("Dict", value);
-  if (value instanceof Dict || value instanceof WeakMap || value instanceof Map) {
-    const entry = map_get(value, name2);
-    return new Ok(entry.isOk() ? new Some(entry[0]) : new None());
-  } else if (value === null) {
-    return not_a_map_error();
-  } else if (Object.getPrototypeOf(value) == Object.prototype) {
-    return try_get_field(value, name2, () => new Ok(new None()));
-  } else {
-    return try_get_field(value, name2, not_a_map_error);
-  }
-}
-function try_get_field(value, field2, or_else) {
-  try {
-    return field2 in value ? new Ok(new Some(value[field2])) : or_else();
-  } catch {
-    return or_else();
-  }
 }
 function inspect(v) {
   const t = typeof v;
@@ -1578,13 +1387,13 @@ function inspectDict(map4) {
   return body + "])";
 }
 function inspectObject(v) {
-  const name2 = Object.getPrototypeOf(v)?.constructor?.name || "Object";
+  const name3 = Object.getPrototypeOf(v)?.constructor?.name || "Object";
   const props = [];
   for (const k of Object.keys(v)) {
     props.push(`${inspect(k)}: ${inspect(v[k])}`);
   }
   const body = props.length ? " " + props.join(", ") + " " : "";
-  const head = name2 === "Object" ? "" : name2 + " ";
+  const head = name3 === "Object" ? "" : name3 + " ";
   return `//js(${head}{${body}})`;
 }
 function inspectCustomType(record) {
@@ -1604,58 +1413,36 @@ function inspectUtfCodepoint(codepoint2) {
   return `//utfcodepoint(${String.fromCodePoint(codepoint2.value)})`;
 }
 
-// build/dev/javascript/gleam_stdlib/gleam/dict.mjs
-function new$() {
-  return new_map();
+// build/dev/javascript/gleam_stdlib/gleam/float.mjs
+function floor2(x) {
+  return floor(x);
 }
-function insert(dict, key, value) {
-  return map_insert(key, value, dict);
+function negate(x) {
+  return -1 * x;
 }
-function reverse_and_concat(loop$remaining, loop$accumulator) {
-  while (true) {
-    let remaining = loop$remaining;
-    let accumulator = loop$accumulator;
-    if (remaining.hasLength(0)) {
-      return accumulator;
-    } else {
-      let item = remaining.head;
-      let rest = remaining.tail;
-      loop$remaining = rest;
-      loop$accumulator = prepend(item, accumulator);
-    }
+function do_round(x) {
+  let $ = x >= 0;
+  if ($) {
+    return round(x);
+  } else {
+    return 0 - round(negate(x));
   }
 }
-function do_keys_acc(loop$list, loop$acc) {
-  while (true) {
-    let list = loop$list;
-    let acc = loop$acc;
-    if (list.hasLength(0)) {
-      return reverse_and_concat(acc, toList([]));
-    } else {
-      let x = list.head;
-      let xs = list.tail;
-      loop$list = xs;
-      loop$acc = prepend(x[0], acc);
-    }
-  }
-}
-function do_keys(dict) {
-  let list_of_pairs = map_to_list(dict);
-  return do_keys_acc(list_of_pairs, toList([]));
-}
-function keys(dict) {
-  return do_keys(dict);
+function round2(x) {
+  return do_round(x);
 }
 
-// build/dev/javascript/gleam_stdlib/gleam/set.mjs
-var Set2 = class extends CustomType {
-  constructor(dict) {
-    super();
-    this.dict = dict;
-  }
-};
-function new$2() {
-  return new Set2(new$());
+// build/dev/javascript/gleam_stdlib/gleam/int.mjs
+function to_string2(x) {
+  return to_string3(x);
+}
+function to_float(x) {
+  return identity(x);
+}
+function random(max) {
+  let _pipe = random_uniform() * to_float(max);
+  let _pipe$1 = floor2(_pipe);
+  return round2(_pipe$1);
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/bool.mjs
@@ -1722,9 +1509,9 @@ function attribute_to_event_handler(attribute2) {
   if (attribute2 instanceof Attribute) {
     return new Error(void 0);
   } else {
-    let name2 = attribute2[0];
+    let name3 = attribute2[0];
     let handler = attribute2[1];
-    let name$1 = drop_left(name2, 2);
+    let name$1 = drop_left(name3, 2);
     return new Ok([name$1, handler]);
   }
 }
@@ -1759,9 +1546,9 @@ function do_handlers(loop$element, loop$handlers, loop$key) {
         (handlers3, attr) => {
           let $ = attribute_to_event_handler(attr);
           if ($.isOk()) {
-            let name2 = $[0][0];
+            let name3 = $[0][0];
             let handler = $[0][1];
-            return insert(handlers3, key + "-" + name2, handler);
+            return insert(handlers3, key + "-" + name3, handler);
           } else {
             return handlers3;
           }
@@ -1779,14 +1566,14 @@ function handlers(element2) {
 }
 
 // build/dev/javascript/lustre/lustre/attribute.mjs
-function attribute(name2, value) {
-  return new Attribute(name2, identity(value), false);
+function attribute(name3, value) {
+  return new Attribute(name3, identity(value), false);
 }
-function property(name2, value) {
-  return new Attribute(name2, identity(value), true);
+function property(name3, value) {
+  return new Attribute(name3, identity(value), true);
 }
-function on(name2, handler) {
-  return new Event("on" + name2, handler);
+function on(name3, handler) {
+  return new Event("on" + name3, handler);
 }
 function style(properties) {
   return attribute(
@@ -1802,14 +1589,14 @@ function style(properties) {
     )
   );
 }
-function type_(name2) {
-  return attribute("type", name2);
+function type_(name3) {
+  return attribute("type", name3);
 }
 function placeholder(text3) {
   return attribute("placeholder", text3);
 }
-function name(name2) {
-  return attribute("name", name2);
+function name(name3) {
+  return attribute("name", name3);
 }
 function required(is_required) {
   return property("required", is_required);
@@ -1856,6 +1643,17 @@ function text(content) {
   return new Text(content);
 }
 
+// build/dev/javascript/gleam_stdlib/gleam/set.mjs
+var Set2 = class extends CustomType {
+  constructor(dict) {
+    super();
+    this.dict = dict;
+  }
+};
+function new$3() {
+  return new Set2(new$());
+}
+
 // build/dev/javascript/lustre/lustre/internals/patch.mjs
 var Diff = class extends CustomType {
   constructor(x0) {
@@ -1880,7 +1678,7 @@ var Init = class extends CustomType {
 function is_empty_element_diff(diff2) {
   return isEqual(diff2.created, new$()) && isEqual(
     diff2.removed,
-    new$2()
+    new$3()
   ) && isEqual(diff2.updated, new$());
 }
 
@@ -2014,15 +1812,15 @@ function createElementNode({ prev, next, dispatch, stack }) {
   }
   const delegated = [];
   for (const attr of next.attrs) {
-    const name2 = attr[0];
+    const name3 = attr[0];
     const value = attr[1];
     if (attr.as_property) {
-      if (el[name2] !== value)
-        el[name2] = value;
+      if (el[name3] !== value)
+        el[name3] = value;
       if (canMorph)
-        prevAttributes.delete(name2);
-    } else if (name2.startsWith("on")) {
-      const eventName = name2.slice(2);
+        prevAttributes.delete(name3);
+    } else if (name3.startsWith("on")) {
+      const eventName = name3.slice(2);
       const callback = dispatch(value, eventName === "input");
       if (!handlersForEl.has(eventName)) {
         el.addEventListener(eventName, lustreGenericEventHandler);
@@ -2030,30 +1828,30 @@ function createElementNode({ prev, next, dispatch, stack }) {
       handlersForEl.set(eventName, callback);
       if (canMorph)
         prevHandlers.delete(eventName);
-    } else if (name2.startsWith("data-lustre-on-")) {
-      const eventName = name2.slice(15);
+    } else if (name3.startsWith("data-lustre-on-")) {
+      const eventName = name3.slice(15);
       const callback = dispatch(lustreServerEventHandler);
       if (!handlersForEl.has(eventName)) {
         el.addEventListener(eventName, lustreGenericEventHandler);
       }
       handlersForEl.set(eventName, callback);
-      el.setAttribute(name2, value);
-    } else if (name2.startsWith("delegate:data-") || name2.startsWith("delegate:aria-")) {
-      el.setAttribute(name2, value);
-      delegated.push([name2.slice(10), value]);
-    } else if (name2 === "class") {
+      el.setAttribute(name3, value);
+    } else if (name3.startsWith("delegate:data-") || name3.startsWith("delegate:aria-")) {
+      el.setAttribute(name3, value);
+      delegated.push([name3.slice(10), value]);
+    } else if (name3 === "class") {
       className = className === null ? value : className + " " + value;
-    } else if (name2 === "style") {
+    } else if (name3 === "style") {
       style2 = style2 === null ? value : style2 + value;
-    } else if (name2 === "dangerous-unescaped-html") {
+    } else if (name3 === "dangerous-unescaped-html") {
       innerHTML = value;
     } else {
-      if (el.getAttribute(name2) !== value)
-        el.setAttribute(name2, value);
-      if (name2 === "value" || name2 === "selected")
-        el[name2] = value;
+      if (el.getAttribute(name3) !== value)
+        el.setAttribute(name3, value);
+      if (name3 === "value" || name3 === "selected")
+        el[name3] = value;
       if (canMorph)
-        prevAttributes.delete(name2);
+        prevAttributes.delete(name3);
     }
   }
   if (className !== null) {
@@ -2078,9 +1876,9 @@ function createElementNode({ prev, next, dispatch, stack }) {
   if (next.tag === "slot") {
     window.queueMicrotask(() => {
       for (const child of el.assignedElements()) {
-        for (const [name2, value] of delegated) {
-          if (!child.hasAttribute(name2)) {
-            child.setAttribute(name2, value);
+        for (const [name3, value] of delegated) {
+          if (!child.hasAttribute(name3)) {
+            child.setAttribute(name3, value);
           }
         }
       }
@@ -2504,7 +2302,6 @@ var LustreServerApplication = class _LustreServerApplication {
 };
 var start_server_application = LustreServerApplication.start;
 var is_browser = () => globalThis.window && window.document;
-var prevent_default = (event2) => event2.preventDefault();
 
 // build/dev/javascript/lustre/lustre.mjs
 var App = class extends CustomType {
@@ -2562,9 +2359,6 @@ function span(attrs, children2) {
 function button(attrs, children2) {
   return element("button", attrs, children2);
 }
-function form(attrs, children2) {
-  return element("form", attrs, children2);
-}
 function input(attrs) {
   return element("input", attrs, toList([]));
 }
@@ -2573,8 +2367,8 @@ function dialog(attrs, children2) {
 }
 
 // build/dev/javascript/lustre/lustre/event.mjs
-function on2(name2, handler) {
-  return on(name2, handler);
+function on2(name3, handler) {
+  return on(name3, handler);
 }
 function on_click(msg) {
   return on2("click", (_) => {
@@ -2582,7 +2376,27 @@ function on_click(msg) {
   });
 }
 
-// build/dev/javascript/app/app.mjs
+// build/dev/javascript/app/habits.mjs
+var Habit = class extends CustomType {
+  constructor(id, name3, descriptioin) {
+    super();
+    this.id = id;
+    this.name = name3;
+    this.descriptioin = descriptioin;
+  }
+};
+function name2(habit2) {
+  return habit2.name;
+}
+function description(habit2) {
+  return habit2.descriptioin;
+}
+var small_int = 4294967296;
+function new_habit(name3, description2) {
+  return new Habit(random(small_int), name3, description2);
+}
+
+// build/dev/javascript/app/days.mjs
 var Monday = class extends CustomType {
 };
 var Tuesday = class extends CustomType {
@@ -2597,14 +2411,6 @@ var Saturday = class extends CustomType {
 };
 var Sunday = class extends CustomType {
 };
-var Habit = class extends CustomType {
-  constructor(id, name2, descriptioin) {
-    super();
-    this.id = id;
-    this.name = name2;
-    this.descriptioin = descriptioin;
-  }
-};
 var Week = class extends CustomType {
   constructor(monday, tuesday, wednesday, thursday, friday, saturday, sunday) {
     super();
@@ -2616,41 +2422,6 @@ var Week = class extends CustomType {
     this.saturday = saturday;
     this.sunday = sunday;
   }
-};
-var ModalAddHabit = class extends CustomType {
-  constructor(day, is_show) {
-    super();
-    this.day = day;
-    this.is_show = is_show;
-  }
-};
-var Model2 = class extends CustomType {
-  constructor(week, modal) {
-    super();
-    this.week = week;
-    this.modal = modal;
-  }
-};
-var AddHabit = class extends CustomType {
-  constructor(day, habit) {
-    super();
-    this.day = day;
-    this.habit = habit;
-  }
-};
-var RemoveHabit = class extends CustomType {
-  constructor(habit_id) {
-    super();
-    this.habit_id = habit_id;
-  }
-};
-var ShowModalAddHabit = class extends CustomType {
-  constructor(day) {
-    super();
-    this.day = day;
-  }
-};
-var CloseModalAddHabit = class extends CustomType {
 };
 function get_week_days(week) {
   return toList([
@@ -2697,124 +2468,68 @@ function update_weekday(day, week, habits) {
     return week.withFields({ sunday: habits });
   }
 }
-function init2(_) {
-  let initial_model = new Model2(
-    new Week(
-      toList([]),
-      toList([]),
-      toList([]),
-      toList([]),
-      toList([]),
-      toList([]),
-      toList([])
-    ),
-    new ModalAddHabit(new Monday(), false)
-  );
-  return [initial_model, none()];
-}
-function update(model, msg) {
-  if (msg instanceof AddHabit) {
-    let day = msg.day;
-    let habit = msg.habit;
-    let day_list = week_day(day, model.week);
-    let week = update_weekday(
-      day,
-      model.week,
-      append(toList([habit]), day_list)
-    );
-    return [new Model2(week, model.modal), none()];
-  } else if (msg instanceof RemoveHabit) {
-    let habit_id = msg.habit_id;
-    throw makeError(
-      "todo",
-      "app",
-      156,
-      "update",
-      "write map id -> Habit to make delition",
-      {}
-    );
-  } else if (msg instanceof ShowModalAddHabit) {
-    let day = msg.day;
-    return [new Model2(model.week, new ModalAddHabit(day, true)), none()];
-  } else {
-    return [
-      new Model2(model.week, new ModalAddHabit(model.modal.day, false)),
-      none()
-    ];
+
+// build/dev/javascript/app/msg.mjs
+var AddHabit = class extends CustomType {
+  constructor(day, habit2) {
+    super();
+    this.day = day;
+    this.habit = habit2;
   }
-}
-function habit_el(habit) {
-  return li(
-    toList([
-      style(
-        toList([
-          ["border-style", "solid"],
-          ["min-width", "5vw"],
-          ["min-height", "5vh"]
-        ])
-      )
-    ]),
+};
+var RemoveHabit = class extends CustomType {
+  constructor(habit_id) {
+    super();
+    this.habit_id = habit_id;
+  }
+};
+var ShowModalAddHabit = class extends CustomType {
+  constructor(day) {
+    super();
+    this.day = day;
+  }
+};
+var CloseModalAddHabit = class extends CustomType {
+};
+
+// build/dev/javascript/app/ui.mjs
+function habit(habit_t) {
+  return div(
+    toList([]),
     toList([
       div(
         toList([style(toList([["font-size", "20px"]]))]),
-        toList([text2(habit.name)])
+        toList([text2(name2(habit_t))])
       ),
       br(toList([])),
       div(
         toList([style(toList([["font-size", "15px"]]))]),
-        toList([text2(habit.descriptioin)])
+        toList([text2(description(habit_t))])
       )
     ])
   );
 }
-function render_day_habits(day) {
+function habit_li(habit_t) {
+  return li(
+    toList([
+      style(toList([["min-width", "5vw"], ["min-height", "5vh"]]))
+    ]),
+    toList([habit(habit_t)])
+  );
+}
+function habits_column(day) {
   return ol(
-    toList([style(toList([["border-style", "solid"]]))]),
-    map(day, habit_el)
+    toList([style(toList([]))]),
+    map(day, habit_li)
   );
-}
-function show_modal_button(day) {
-  return button(
-    toList([on_click(new ShowModalAddHabit(day))]),
-    toList([text2("Add habit")])
-  );
-}
-var small_int = 4294967296;
-function new_habit(name2, description) {
-  return new Habit(random(small_int), name2, description);
 }
 function add_new_habit_dialog(day, is_opened) {
   let h_name = "habit_name";
   let h_desc = "habit_description";
-  let process_form_values = (event2) => {
-    let $ = prevent_default(event2);
-    return try$(
-      field("target", dynamic)(event2),
-      (target) => {
-        return try$(
-          field(h_name, string)(target),
-          (name2) => {
-            return try$(
-              field(h_desc, string)(target),
-              (desc) => {
-                return new Ok(new AddHabit(day, new_habit(name2, desc)));
-              }
-            );
-          }
-        );
-      }
-    );
-  };
   return dialog(
     toList([
       open(is_opened),
-      style(
-        toList([
-          ["border-style", "solid"],
-          ["min-width", "5vw"],
-          ["min-height", "5vh"]
-        ])
-      )
+      style(toList([["min-width", "5vw"], ["min-height", "5vh"]]))
     ]),
     toList([
       div(
@@ -2827,12 +2542,12 @@ function add_new_habit_dialog(day, is_opened) {
           p(toList([]), toList([text2("Adding new habit")])),
           span(
             toList([on_click(new CloseModalAddHabit())]),
-            toList([text2("X")])
+            toList([button(toList([]), toList([text2("X")]))])
           )
         ])
       ),
-      form(
-        toList([on2("submit", process_form_values)]),
+      div(
+        toList([]),
         toList([
           input(
             toList([
@@ -2857,6 +2572,74 @@ function add_new_habit_dialog(day, is_opened) {
     ])
   );
 }
+
+// build/dev/javascript/app/app.mjs
+var ModalAddHabit = class extends CustomType {
+  constructor(day, is_show) {
+    super();
+    this.day = day;
+    this.is_show = is_show;
+  }
+};
+var Model2 = class extends CustomType {
+  constructor(week, modal) {
+    super();
+    this.week = week;
+    this.modal = modal;
+  }
+};
+function init2(_) {
+  let initial_model = new Model2(
+    new Week(
+      toList([]),
+      toList([]),
+      toList([]),
+      toList([]),
+      toList([]),
+      toList([]),
+      toList([])
+    ),
+    new ModalAddHabit(new Monday(), false)
+  );
+  return [initial_model, none()];
+}
+function update(model, msg) {
+  if (msg instanceof AddHabit) {
+    let day = msg.day;
+    let habit2 = msg.habit;
+    let day_list = week_day(day, model.week);
+    let week = update_weekday(
+      day,
+      model.week,
+      append(toList([habit2]), day_list)
+    );
+    return [new Model2(week, model.modal), none()];
+  } else if (msg instanceof RemoveHabit) {
+    let habit_id = msg.habit_id;
+    throw makeError(
+      "todo",
+      "app",
+      60,
+      "update",
+      "write map id -> Habit to make delition",
+      {}
+    );
+  } else if (msg instanceof ShowModalAddHabit) {
+    let day = msg.day;
+    return [new Model2(model.week, new ModalAddHabit(day, true)), none()];
+  } else {
+    return [
+      new Model2(model.week, new ModalAddHabit(model.modal.day, false)),
+      none()
+    ];
+  }
+}
+function show_modal_button(day) {
+  return button(
+    toList([on_click(new ShowModalAddHabit(day))]),
+    toList([text2("Add habit")])
+  );
+}
 function view(model) {
   return div(
     toList([
@@ -2877,12 +2660,15 @@ function view(model) {
         get_week_days(model.week),
         (v) => {
           return div(
-            toList([style(toList([["border-style", "solid"]]))]),
+            toList([style(toList([]))]),
             toList([
               text2(inspect2(v[0])),
-              render_day_habits(
+              habits_column(
                 concat(
-                  toList([toList([new Habit(1, "sport", "any sport")]), v[1]])
+                  toList([
+                    toList([new_habit("sport", "any sport")]),
+                    v[1]
+                  ])
                 )
               ),
               show_modal_button(v[0])
@@ -2900,7 +2686,7 @@ function main() {
     throw makeError(
       "let_assert",
       "app",
-      18,
+      19,
       "main",
       "Pattern match failed, no pattern matched the value.",
       { value: $ }

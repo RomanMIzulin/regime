@@ -9,4 +9,4 @@
 - [ ] Adding habit closing modal
 - [ ] Parametrizing day when adding habit
 - [ ] Research PouchDB integration or similar or just use local store or indexedDB. Anyway Local first approach.
-- [ ]
+- [ ] Habbits templates
