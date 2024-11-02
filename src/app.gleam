@@ -86,7 +86,11 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
     }
     msg.CloseModalAddHabit -> {
       #(
-        Model(..model, modal: ModalAddHabit(model.modal.day, False)),
+        Model(
+          ..model,
+          modal: ModalAddHabit(model.modal.day, False),
+          adding_habit: AddingHabit(option.None, option.None),
+        ),
         effect.none(),
       )
     }
