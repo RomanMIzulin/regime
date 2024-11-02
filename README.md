@@ -6,7 +6,12 @@
 
 ## TODO
 
-- [ ] Adding habit closing modal
 - [ ] Parametrizing day when adding habit
+- [ ] export habits to json file
+- [ ] historical data? too much?
 - [ ] Research PouchDB integration or similar or just use local store or indexedDB. Anyway Local first approach.
 - [ ] Habbits templates
+
+## DONE
+
+- [x] Adding habit closes modal
