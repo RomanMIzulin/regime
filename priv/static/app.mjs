@@ -110,29 +110,29 @@ var BitArray = class _BitArray {
   }
 };
 var UtfCodepoint = class {
-  constructor(value) {
-    this.value = value;
+  constructor(value2) {
+    this.value = value2;
   }
 };
 function byteArrayToInt(byteArray, start3, end, isBigEndian, isSigned) {
-  let value = 0;
+  let value2 = 0;
   if (isBigEndian) {
     for (let i = start3; i < end; i++) {
-      value = value * 256 + byteArray[i];
+      value2 = value2 * 256 + byteArray[i];
     }
   } else {
     for (let i = end - 1; i >= start3; i--) {
-      value = value * 256 + byteArray[i];
+      value2 = value2 * 256 + byteArray[i];
     }
   }
   if (isSigned) {
     const byteSize = end - start3;
     const highBit = 2 ** (byteSize * 8 - 1);
-    if (value >= highBit) {
-      value -= highBit * 2;
+    if (value2 >= highBit) {
+      value2 -= highBit * 2;
     }
   }
-  return value;
+  return value2;
 }
 function byteArrayToFloat(byteArray, start3, end, isBigEndian) {
   const view2 = new DataView(byteArray.buffer);
@@ -153,9 +153,9 @@ var Result = class _Result extends CustomType {
   }
 };
 var Ok = class extends Result {
-  constructor(value) {
+  constructor(value2) {
     super();
-    this[0] = value;
+    this[0] = value2;
   }
   // @internal
   isOk() {
@@ -251,15 +251,29 @@ function makeError(variant, module, line, fn, message, extra) {
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/option.mjs
+var Some = class extends CustomType {
+  constructor(x0) {
+    super();
+    this[0] = x0;
+  }
+};
 var None = class extends CustomType {
 };
+function to_result(option, e) {
+  if (option instanceof Some) {
+    let a = option[0];
+    return new Ok(a);
+  } else {
+    return new Error(e);
+  }
+}
 
 // build/dev/javascript/gleam_stdlib/gleam/dict.mjs
 function new$() {
   return new_map();
 }
-function insert(dict, key, value) {
-  return map_insert(key, value, dict);
+function insert(dict, key, value2) {
+  return map_insert(key, value2, dict);
 }
 function reverse_and_concat(loop$remaining, loop$accumulator) {
   while (true) {
@@ -462,6 +476,35 @@ function index_fold(over, initial, fun) {
   return do_index_fold(over, initial, fun, 0);
 }
 
+// build/dev/javascript/gleam_stdlib/gleam/result.mjs
+function map2(result, fun) {
+  if (result.isOk()) {
+    let x = result[0];
+    return new Ok(fun(x));
+  } else {
+    let e = result[0];
+    return new Error(e);
+  }
+}
+function map_error(result, fun) {
+  if (result.isOk()) {
+    let x = result[0];
+    return new Ok(x);
+  } else {
+    let error = result[0];
+    return new Error(fun(error));
+  }
+}
+function try$(result, fun) {
+  if (result.isOk()) {
+    let x = result[0];
+    return fun(x);
+  } else {
+    let e = result[0];
+    return new Error(e);
+  }
+}
+
 // build/dev/javascript/gleam_stdlib/gleam/string_builder.mjs
 function from_strings(strings) {
   return concat2(strings);
@@ -516,6 +559,91 @@ function drop_left(string3, num_graphemes) {
 function inspect2(term) {
   let _pipe = inspect(term);
   return to_string(_pipe);
+}
+
+// build/dev/javascript/gleam_stdlib/gleam/dynamic.mjs
+var DecodeError = class extends CustomType {
+  constructor(expected, found, path) {
+    super();
+    this.expected = expected;
+    this.found = found;
+    this.path = path;
+  }
+};
+function classify(data) {
+  return classify_dynamic(data);
+}
+function int(data) {
+  return decode_int(data);
+}
+function any(decoders) {
+  return (data) => {
+    if (decoders.hasLength(0)) {
+      return new Error(
+        toList([new DecodeError("another type", classify(data), toList([]))])
+      );
+    } else {
+      let decoder = decoders.head;
+      let decoders$1 = decoders.tail;
+      let $ = decoder(data);
+      if ($.isOk()) {
+        let decoded = $[0];
+        return new Ok(decoded);
+      } else {
+        return any(decoders$1)(data);
+      }
+    }
+  };
+}
+function push_path(error, name3) {
+  let name$1 = identity(name3);
+  let decoder = any(
+    toList([string, (x) => {
+      return map2(int(x), to_string2);
+    }])
+  );
+  let name$2 = (() => {
+    let $ = decoder(name$1);
+    if ($.isOk()) {
+      let name$22 = $[0];
+      return name$22;
+    } else {
+      let _pipe = toList(["<", classify(name$1), ">"]);
+      let _pipe$1 = from_strings(_pipe);
+      return to_string(_pipe$1);
+    }
+  })();
+  return error.withFields({ path: prepend(name$2, error.path) });
+}
+function map_errors(result, f) {
+  return map_error(
+    result,
+    (_capture) => {
+      return map(_capture, f);
+    }
+  );
+}
+function string(data) {
+  return decode_string(data);
+}
+function field(name3, inner_type) {
+  return (value2) => {
+    let missing_field_error = new DecodeError("field", "nothing", toList([]));
+    return try$(
+      decode_field(value2, name3),
+      (maybe_inner) => {
+        let _pipe = maybe_inner;
+        let _pipe$1 = to_result(_pipe, toList([missing_field_error]));
+        let _pipe$2 = try$(_pipe$1, inner_type);
+        return map_errors(
+          _pipe$2,
+          (_capture) => {
+            return push_path(_capture, name3);
+          }
+        );
+      }
+    );
+  };
 }
 
 // build/dev/javascript/gleam_stdlib/dict.mjs
@@ -1216,6 +1344,8 @@ var Dict = class _Dict {
 };
 
 // build/dev/javascript/gleam_stdlib/gleam_stdlib.mjs
+var Nil = void 0;
+var NOT_FOUND = {};
 function identity(x) {
   return x;
 }
@@ -1298,8 +1428,77 @@ function new_map() {
 function map_to_list(map4) {
   return List.fromArray(map4.entries());
 }
-function map_insert(key, value, map4) {
-  return map4.set(key, value);
+function map_get(map4, key) {
+  const value2 = map4.get(key, NOT_FOUND);
+  if (value2 === NOT_FOUND) {
+    return new Error(Nil);
+  }
+  return new Ok(value2);
+}
+function map_insert(key, value2, map4) {
+  return map4.set(key, value2);
+}
+function classify_dynamic(data) {
+  if (typeof data === "string") {
+    return "String";
+  } else if (typeof data === "boolean") {
+    return "Bool";
+  } else if (data instanceof Result) {
+    return "Result";
+  } else if (data instanceof List) {
+    return "List";
+  } else if (data instanceof BitArray) {
+    return "BitArray";
+  } else if (data instanceof Dict) {
+    return "Dict";
+  } else if (Number.isInteger(data)) {
+    return "Int";
+  } else if (Array.isArray(data)) {
+    return `Tuple of ${data.length} elements`;
+  } else if (typeof data === "number") {
+    return "Float";
+  } else if (data === null) {
+    return "Null";
+  } else if (data === void 0) {
+    return "Nil";
+  } else {
+    const type = typeof data;
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  }
+}
+function decoder_error(expected, got) {
+  return decoder_error_no_classify(expected, classify_dynamic(got));
+}
+function decoder_error_no_classify(expected, got) {
+  return new Error(
+    List.fromArray([new DecodeError(expected, got, List.fromArray([]))])
+  );
+}
+function decode_string(data) {
+  return typeof data === "string" ? new Ok(data) : decoder_error("String", data);
+}
+function decode_int(data) {
+  return Number.isInteger(data) ? new Ok(data) : decoder_error("Int", data);
+}
+function decode_field(value2, name3) {
+  const not_a_map_error = () => decoder_error("Dict", value2);
+  if (value2 instanceof Dict || value2 instanceof WeakMap || value2 instanceof Map) {
+    const entry = map_get(value2, name3);
+    return new Ok(entry.isOk() ? new Some(entry[0]) : new None());
+  } else if (value2 === null) {
+    return not_a_map_error();
+  } else if (Object.getPrototypeOf(value2) == Object.prototype) {
+    return try_get_field(value2, name3, () => new Ok(new None()));
+  } else {
+    return try_get_field(value2, name3, not_a_map_error);
+  }
+}
+function try_get_field(value2, field2, or_else) {
+  try {
+    return field2 in value2 ? new Ok(new Some(value2[field2])) : or_else();
+  } catch {
+    return or_else();
+  }
 }
 function inspect(v) {
   const t = typeof v;
@@ -1378,10 +1577,10 @@ function inspectString(str) {
 function inspectDict(map4) {
   let body = "dict.from_list([";
   let first2 = true;
-  map4.forEach((value, key) => {
+  map4.forEach((value2, key) => {
     if (!first2)
       body = body + ", ";
-    body = body + "#(" + inspect(key) + ", " + inspect(value) + ")";
+    body = body + "#(" + inspect(key) + ", " + inspect(value2) + ")";
     first2 = false;
   });
   return body + "])";
@@ -1398,8 +1597,8 @@ function inspectObject(v) {
 }
 function inspectCustomType(record) {
   const props = Object.keys(record).map((label) => {
-    const value = inspect(record[label]);
-    return isNaN(parseInt(label)) ? `${label}: ${value}` : value;
+    const value2 = inspect(record[label]);
+    return isNaN(parseInt(label)) ? `${label}: ${value2}` : value2;
   }).join(", ");
   return props ? `${record.constructor.name}(${props})` : record.constructor.name;
 }
@@ -1566,11 +1765,11 @@ function handlers(element2) {
 }
 
 // build/dev/javascript/lustre/lustre/attribute.mjs
-function attribute(name3, value) {
-  return new Attribute(name3, identity(value), false);
+function attribute(name3, value2) {
+  return new Attribute(name3, identity(value2), false);
 }
-function property(name3, value) {
-  return new Attribute(name3, identity(value), true);
+function property(name3, value2) {
+  return new Attribute(name3, identity(value2), true);
 }
 function on(name3, handler) {
   return new Event("on" + name3, handler);
@@ -1588,6 +1787,9 @@ function style(properties) {
       }
     )
   );
+}
+function class$(name3) {
+  return attribute("class", name3);
 }
 function type_(name3) {
   return attribute("type", name3);
@@ -1813,15 +2015,15 @@ function createElementNode({ prev, next, dispatch, stack }) {
   const delegated = [];
   for (const attr of next.attrs) {
     const name3 = attr[0];
-    const value = attr[1];
+    const value2 = attr[1];
     if (attr.as_property) {
-      if (el[name3] !== value)
-        el[name3] = value;
+      if (el[name3] !== value2)
+        el[name3] = value2;
       if (canMorph)
         prevAttributes.delete(name3);
     } else if (name3.startsWith("on")) {
       const eventName = name3.slice(2);
-      const callback = dispatch(value, eventName === "input");
+      const callback = dispatch(value2, eventName === "input");
       if (!handlersForEl.has(eventName)) {
         el.addEventListener(eventName, lustreGenericEventHandler);
       }
@@ -1835,21 +2037,21 @@ function createElementNode({ prev, next, dispatch, stack }) {
         el.addEventListener(eventName, lustreGenericEventHandler);
       }
       handlersForEl.set(eventName, callback);
-      el.setAttribute(name3, value);
+      el.setAttribute(name3, value2);
     } else if (name3.startsWith("delegate:data-") || name3.startsWith("delegate:aria-")) {
-      el.setAttribute(name3, value);
-      delegated.push([name3.slice(10), value]);
+      el.setAttribute(name3, value2);
+      delegated.push([name3.slice(10), value2]);
     } else if (name3 === "class") {
-      className = className === null ? value : className + " " + value;
+      className = className === null ? value2 : className + " " + value2;
     } else if (name3 === "style") {
-      style2 = style2 === null ? value : style2 + value;
+      style2 = style2 === null ? value2 : style2 + value2;
     } else if (name3 === "dangerous-unescaped-html") {
-      innerHTML = value;
+      innerHTML = value2;
     } else {
-      if (el.getAttribute(name3) !== value)
-        el.setAttribute(name3, value);
+      if (el.getAttribute(name3) !== value2)
+        el.setAttribute(name3, value2);
       if (name3 === "value" || name3 === "selected")
-        el[name3] = value;
+        el[name3] = value2;
       if (canMorph)
         prevAttributes.delete(name3);
     }
@@ -1876,9 +2078,9 @@ function createElementNode({ prev, next, dispatch, stack }) {
   if (next.tag === "slot") {
     window.queueMicrotask(() => {
       for (const child of el.assignedElements()) {
-        for (const [name3, value] of delegated) {
+        for (const [name3, value2] of delegated) {
           if (!child.hasAttribute(name3)) {
-            child.setAttribute(name3, value);
+            child.setAttribute(name3, value2);
           }
         }
       }
@@ -2375,8 +2577,41 @@ function on_click(msg) {
     return new Ok(msg);
   });
 }
+function value(event2) {
+  let _pipe = event2;
+  return field("target", field("value", string))(
+    _pipe
+  );
+}
+function on_input(msg) {
+  return on2(
+    "input",
+    (event2) => {
+      let _pipe = value(event2);
+      return map2(_pipe, msg);
+    }
+  );
+}
+
+// build/dev/javascript/lustre_ui/lustre/ui/alert.mjs
+function of(element2, attributes, children2) {
+  return element2(
+    prepend(class$("lustre-ui-alert"), attributes),
+    children2
+  );
+}
+function alert(attributes, children2) {
+  return of(div, attributes, children2);
+}
 
 // build/dev/javascript/app/habits.mjs
+var AddingHabit = class extends CustomType {
+  constructor(name3, description2) {
+    super();
+    this.name = name3;
+    this.description = description2;
+  }
+};
 var Habit = class extends CustomType {
   constructor(id, name3, descriptioin) {
     super();
@@ -2471,10 +2706,9 @@ function update_weekday(day, week, habits) {
 
 // build/dev/javascript/app/msg.mjs
 var AddHabit = class extends CustomType {
-  constructor(day, habit2) {
+  constructor(day) {
     super();
     this.day = day;
-    this.habit = habit2;
   }
 };
 var RemoveHabit = class extends CustomType {
@@ -2491,11 +2725,29 @@ var ShowModalAddHabit = class extends CustomType {
 };
 var CloseModalAddHabit = class extends CustomType {
 };
+var EditHabitMsg = class extends CustomType {
+  constructor(x0) {
+    super();
+    this[0] = x0;
+  }
+};
+var AddName = class extends CustomType {
+  constructor(name3) {
+    super();
+    this.name = name3;
+  }
+};
+var AddDescription = class extends CustomType {
+  constructor(description2) {
+    super();
+    this.description = description2;
+  }
+};
 
 // build/dev/javascript/app/ui.mjs
 function habit(habit_t) {
   return div(
-    toList([]),
+    toList([style(toList([["margin", "5px"]]))]),
     toList([
       div(
         toList([style(toList([["font-size", "20px"]]))]),
@@ -2551,6 +2803,11 @@ function add_new_habit_dialog(day, is_opened) {
         toList([
           input(
             toList([
+              on_input(
+                (h_name2) => {
+                  return new EditHabitMsg(new AddName(h_name2));
+                }
+              ),
               name(h_name),
               type_("text"),
               placeholder("name of habbit"),
@@ -2560,13 +2817,23 @@ function add_new_habit_dialog(day, is_opened) {
           input(toList([placeholder(inspect2(day))])),
           input(
             toList([
+              on_input(
+                (h_name2) => {
+                  return new EditHabitMsg(new AddDescription(h_desc));
+                }
+              ),
               name(h_desc),
               type_("text"),
               placeholder("description"),
               required(false)
             ])
           ),
-          input(toList([type_("submit")]))
+          input(
+            toList([
+              on_click(new AddHabit(day)),
+              type_("submit")
+            ])
+          )
         ])
       )
     ])
@@ -2582,10 +2849,11 @@ var ModalAddHabit = class extends CustomType {
   }
 };
 var Model2 = class extends CustomType {
-  constructor(week, modal) {
+  constructor(week, modal, adding_habit) {
     super();
     this.week = week;
     this.modal = modal;
+    this.adding_habit = adding_habit;
   }
 };
 function init2(_) {
@@ -2599,39 +2867,89 @@ function init2(_) {
       toList([]),
       toList([])
     ),
-    new ModalAddHabit(new Monday(), false)
+    new ModalAddHabit(new Monday(), false),
+    new AddingHabit(new None(), new None())
   );
   return [initial_model, none()];
 }
 function update(model, msg) {
   if (msg instanceof AddHabit) {
     let day = msg.day;
-    let habit2 = msg.habit;
     let day_list = week_day(day, model.week);
-    let week = update_weekday(
-      day,
-      model.week,
-      append(toList([habit2]), day_list)
-    );
-    return [new Model2(week, model.modal), none()];
+    let $ = model.adding_habit.name;
+    let $1 = model.adding_habit.description;
+    if ($ instanceof Some && $1 instanceof Some) {
+      let name3 = $[0];
+      let description2 = $1[0];
+      let habit2 = new_habit(name3, description2);
+      let week = update_weekday(
+        day,
+        model.week,
+        append(toList([habit2]), day_list)
+      );
+      return [
+        new Model2(
+          week,
+          new ModalAddHabit(new Monday(), false),
+          new AddingHabit(new None(), new None())
+        ),
+        none()
+      ];
+    } else {
+      alert(
+        toList([]),
+        toList([
+          text2("Name and description are required when creating a habit")
+        ])
+      );
+      return [model, none()];
+    }
   } else if (msg instanceof RemoveHabit) {
     let habit_id = msg.habit_id;
     throw makeError(
       "todo",
       "app",
-      60,
+      82,
       "update",
       "write map id -> Habit to make delition",
       {}
     );
   } else if (msg instanceof ShowModalAddHabit) {
     let day = msg.day;
-    return [new Model2(model.week, new ModalAddHabit(day, true)), none()];
-  } else {
     return [
-      new Model2(model.week, new ModalAddHabit(model.modal.day, false)),
+      model.withFields({ modal: new ModalAddHabit(day, true) }),
       none()
     ];
+  } else if (msg instanceof CloseModalAddHabit) {
+    return [
+      model.withFields({ modal: new ModalAddHabit(model.modal.day, false) }),
+      none()
+    ];
+  } else {
+    let field2 = msg[0];
+    if (field2 instanceof AddName) {
+      let name3 = field2.name;
+      return [
+        model.withFields({
+          adding_habit: new AddingHabit(
+            new Some(name3),
+            model.adding_habit.description
+          )
+        }),
+        none()
+      ];
+    } else {
+      let description2 = field2.description;
+      return [
+        model.withFields({
+          adding_habit: new AddingHabit(
+            model.adding_habit.name,
+            new Some(description2)
+          )
+        }),
+        none()
+      ];
+    }
   }
 }
 function show_modal_button(day) {
@@ -2686,7 +3004,7 @@ function main() {
     throw makeError(
       "let_assert",
       "app",
-      19,
+      22,
       "main",
       "Pattern match failed, no pattern matched the value.",
       { value: $ }

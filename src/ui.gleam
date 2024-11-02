@@ -13,7 +13,7 @@ import msg.{type Msg}
 
 /// UI elements
 pub fn habit(habit_t: Habit) -> Element(Msg) {
-  html.div([], [
+  html.div([attribute.style([#("margin", "5px")])], [
     html.div([attribute.style([#("font-size", "20px")])], [
       html.text(habits.name(habit_t)),
     ]),
@@ -59,6 +59,7 @@ pub fn add_new_habit_dialog(day: Day, is_opened: Bool) -> Element(Msg) {
       ),
       html.div([], [
         html.input([
+          event.on_input(fn(h_name) { msg.EditHabitMsg(msg.AddName(h_name)) }),
           attribute.name(h_name),
           attribute.type_("text"),
           attribute.placeholder("name of habbit"),
@@ -66,12 +67,18 @@ pub fn add_new_habit_dialog(day: Day, is_opened: Bool) -> Element(Msg) {
         ]),
         html.input([attribute.placeholder(string.inspect(day))]),
         html.input([
+          event.on_input(fn(h_name) {
+            msg.EditHabitMsg(msg.AddDescription(h_desc))
+          }),
           attribute.name(h_desc),
           attribute.type_("text"),
           attribute.placeholder("description"),
           attribute.required(False),
         ]),
-        html.input([attribute.type_("submit")]),
+        html.input([
+          event.on_click(msg.AddHabit(day)),
+          attribute.type_("submit"),
+        ]),
       ]),
     ],
   )

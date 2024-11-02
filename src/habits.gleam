@@ -1,7 +1,13 @@
 import gleam/int
+import gleam/option.{type Option}
 
 // 2^32
 const small_int = 4_294_967_296
+
+//representing current adding habit state
+pub type AddingHabit {
+  AddingHabit(name: Option(String), description: Option(String))
+}
 
 pub opaque type Habit {
   Habit(id: Int, name: String, descriptioin: String)

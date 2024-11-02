@@ -1,6 +1,9 @@
 import gleam/int
+import gleam/io
 import gleam/list
+import gleam/option
 import gleam/string
+import lustre/ui/alert
 
 import lustre
 import lustre/attribute
@@ -10,7 +13,7 @@ import lustre/element/html
 import lustre/event
 
 import days.{type Day, type Week, Week}
-import habits.{type Habit}
+import habits.{type AddingHabit, type Habit, AddingHabit}
 import msg.{type Msg}
 import ui
 
@@ -26,7 +29,7 @@ type ModalAddHabit {
 }
 
 type Model {
-  Model(week: Week, modal: ModalAddHabit)
+  Model(week: Week, modal: ModalAddHabit, adding_habit: AddingHabit)
 }
 
 fn init(_) -> #(Model, Effect(Msg)) {
@@ -42,6 +45,7 @@ fn init(_) -> #(Model, Effect(Msg)) {
         sunday: [],
       ),
       ModalAddHabit(days.Monday, False),
+      AddingHabit(option.None, option.None),
     )
   #(initial_model, effect.none())
 }
@@ -50,20 +54,69 @@ fn init(_) -> #(Model, Effect(Msg)) {
 
 fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
   case msg {
-    msg.AddHabit(day, habit) -> {
+    msg.AddHabit(day) -> {
       let day_list = days.week_day(day, model.week)
-      let week =
-        days.update_weekday(day, model.week, list.append([habit], day_list))
-      #(Model(week, model.modal), effect.none())
+      case model.adding_habit.name, model.adding_habit.description {
+        option.Some(name), option.Some(description) -> {
+          let habit = habits.new_habit(name, description)
+          let week =
+            days.update_weekday(day, model.week, list.append([habit], day_list))
+          #(
+            Model(
+              week: week,
+              modal: ModalAddHabit(days.Monday, False),
+              adding_habit: AddingHabit(option.None, option.None),
+            ),
+            effect.none(),
+          )
+        }
+        _, _ -> {
+          alert.alert([], [
+            html.text("Name and description are required when creating a habit"),
+          ])
+          #(model, effect.none())
+        }
+      }
     }
     msg.RemoveHabit(habit_id) -> {
       todo as "write map id -> Habit to make delition"
     }
     msg.ShowModalAddHabit(day) -> {
-      #(Model(model.week, ModalAddHabit(day, True)), effect.none())
+      #(Model(..model, modal: ModalAddHabit(day, True)), effect.none())
     }
     msg.CloseModalAddHabit -> {
-      #(Model(model.week, ModalAddHabit(model.modal.day, False)), effect.none())
+      #(
+        Model(..model, modal: ModalAddHabit(model.modal.day, False)),
+        effect.none(),
+      )
+    }
+    msg.EditHabitMsg(field) -> {
+      case field {
+        msg.AddName(name) -> {
+          #(
+            Model(
+              ..model,
+              adding_habit: AddingHabit(
+                option.Some(name),
+                model.adding_habit.description,
+              ),
+            ),
+            effect.none(),
+          )
+        }
+        msg.AddDescription(description) -> {
+          #(
+            Model(
+              ..model,
+              adding_habit: AddingHabit(
+                model.adding_habit.name,
+                option.Some(description),
+              ),
+            ),
+            effect.none(),
+          )
+        }
+      }
     }
   }
 }
