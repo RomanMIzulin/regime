@@ -2781,7 +2781,14 @@ function add_new_habit_dialog(day, is_opened) {
   return dialog(
     toList([
       open(is_opened),
-      style(toList([["min-width", "5vw"], ["min-height", "5vh"]]))
+      style(
+        toList([
+          ["min-width", "5vw"],
+          ["min-height", "8vh"],
+          ["z-index", "1"],
+          ["top", "10%"]
+        ])
+      )
     ]),
     toList([
       div(
@@ -2922,7 +2929,10 @@ function update(model, msg) {
     ];
   } else if (msg instanceof CloseModalAddHabit) {
     return [
-      model.withFields({ modal: new ModalAddHabit(model.modal.day, false) }),
+      model.withFields({
+        modal: new ModalAddHabit(model.modal.day, false),
+        adding_habit: new AddingHabit(new None(), new None())
+      }),
       none()
     ];
   } else {
@@ -2978,13 +2988,35 @@ function view(model) {
         get_week_days(model.week),
         (v) => {
           return div(
-            toList([style(toList([]))]),
+            toList([
+              style(
+                toList([
+                  [
+                    "opacity",
+                    (() => {
+                      let $ = model.modal.is_show;
+                      if ($) {
+                        return "0.5";
+                      } else {
+                        return "1";
+                      }
+                    })()
+                  ]
+                ])
+              )
+            ]),
             toList([
               text2(inspect2(v[0])),
               habits_column(
                 concat(
                   toList([
-                    toList([new_habit("sport", "any sport")]),
+                    toList([
+                      new_habit("sport", "any sport"),
+                      new_habit(
+                        "energy control",
+                        "only one tea or coffee/breath technique"
+                      )
+                    ]),
                     v[1]
                   ])
                 )

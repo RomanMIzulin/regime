@@ -40,7 +40,12 @@ pub fn add_new_habit_dialog(day: Day, is_opened: Bool) -> Element(Msg) {
   html.dialog(
     [
       attribute.open(is_opened),
-      attribute.style([#("min-width", "5vw"), #("min-height", "5vh")]),
+      attribute.style([
+        #("min-width", "5vw"),
+        #("min-height", "8vh"),
+        #("z-index", "1"),
+        #("top", "10%"),
+      ]),
     ],
     [
       html.div(

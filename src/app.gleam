@@ -6,7 +6,7 @@ import gleam/string
 import lustre/ui/alert
 
 import lustre
-import lustre/attribute
+import lustre/attribute.{style}
 import lustre/effect.{type Effect}
 import lustre/element.{type Element}
 import lustre/element/html
@@ -149,13 +149,32 @@ fn view(model: Model) -> Element(Msg) {
       [ui.add_new_habit_dialog(model.modal.day, model.modal.is_show)],
       list.map(days.get_week_days(model.week), fn(v) {
         // v.0 - day, v.1 - habits
-        html.div([attribute.style([])], [
-          html.text(string.inspect(v.0)),
-          ui.habits_column(
-            list.concat([[habits.new_habit("sport", "any sport")], v.1]),
-          ),
-          show_modal_button(v.0),
-        ])
+        html.div(
+          [
+            attribute.style([
+              #("opacity", case model.modal.is_show {
+                True -> "0.5"
+                False -> "1"
+              }),
+            ]),
+          ],
+          [
+            html.text(string.inspect(v.0)),
+            ui.habits_column(
+              list.concat([
+                [
+                  habits.new_habit("sport", "any sport"),
+                  habits.new_habit(
+                    "energy control",
+                    "only one tea or coffee/breath technique",
+                  ),
+                ],
+                v.1,
+              ]),
+            ),
+            show_modal_button(v.0),
+          ],
+        )
       }),
     ),
   )
